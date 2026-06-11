@@ -1,0 +1,36 @@
+{
+  "appId": "com.chatapp.mobile",
+  "appName": "Chat App",
+  "webDir": "src",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://chat-app-server.up.railway.app",
+    "cleartext": false,
+    "allowNavigation": ["*"]
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#1aad19",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#2e2e2e"
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "ios": {
+    "contentInset": "always",
+    "allowsLinkPreview": true,
+    "scrollEnabled": true
+  }
+}

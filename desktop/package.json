@@ -1,0 +1,65 @@
+{
+  "name": "chat-app-desktop",
+  "version": "1.0.0",
+  "description": "Chat App - 轻量聊天客户端",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:prod": "cross-env CHAT_SERVER_URL=https://chat-app-server.up.railway.app electron-builder --win",
+    "start:prod": "cross-env CHAT_SERVER_URL=https://chat-app-server.up.railway.app electron ."
+  },
+  "build": {
+    "appId": "com.chatapp.desktop",
+    "productName": "Chat App",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon.png",
+      "publisherName": "Chat App",
+      "certificateFile": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Chat App",
+      "unicode": true
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "icon.png",
+      "category": "public.app-category.social-networking"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "icon.png",
+      "category": "Network"
+    },
+    "extraResources": []
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.0"
+  }
+}
