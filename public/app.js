@@ -360,24 +360,43 @@ document.getElementById('setupAvatarInput').addEventListener('change', (e) => {
 });
 
 document.getElementById('setupCompleteBtn').addEventListener('click', () => {
-  const name = document.getElementById('setupName').value.trim() || `用户${(currentUser?.phone||'').slice(-4)}`;
   const btn = document.getElementById('setupCompleteBtn');
+  const name = document.getElementById('setupName').value.trim() || `用户${(currentUser?.phone||'').slice(-4)}`;
   btn.disabled = true; btn.textContent = '处理中...';
+  document.getElementById('setupError').textContent = '';
 
-  socket.emit('complete-profile', {
-    userId: currentUser.id, name, gender: selectedGender, avatar: setupAvatarDataUrl,
-  }, (res) => {
-    if (res.success) {
-      currentUser = res.user;
-      document.getElementById('profilePage').classList.remove('active');
-      loginPage.classList.remove('active');
-      mainPage.classList.add('active');
-      updateProfileUI();
-      goOnline();
-    } else {
-      document.getElementById('setupError').textContent = res.error || '保存失败';
+  // 先上线获取数据
+  socket.emit('user-online', currentUser.id, (onlineRes) => {
+    if (!onlineRes.success) {
+      document.getElementById('setupError').textContent = '连接服务器失败，请重试';
+      btn.disabled = false; btn.textContent = '进入 WeTalk'; return;
     }
-    btn.disabled = false; btn.textContent = '进入 WeTalk';
+    // 再保存资料
+    socket.emit('complete-profile', {
+      userId: currentUser.id, name, gender: selectedGender, avatar: setupAvatarDataUrl,
+    }, (res) => {
+      if (res.success) {
+        currentUser = res.user;
+        document.getElementById('profilePage').classList.remove('active');
+        loginPage.classList.remove('active');
+        mainPage.classList.add('active');
+        updateProfileUI();
+        contacts = new Map();
+        onlineRes.users.forEach(u => contacts.set(u.id, u));
+        onlineRes.chats?.forEach(c => { if (c.with && !contacts.has(c.with.id)) contacts.set(c.with.id, c.with); });
+        renderContactList(); renderChatList();
+        if (onlineRes.chats?.length > 0) {
+          openChat(onlineRes.chats[0].with.id);
+          socket.emit('get-messages', { with: onlineRes.chats[0].with.id }, (msgs) => {
+            messageCache.set(getChatId(currentUser.id, onlineRes.chats[0].with.id), msgs || []);
+            renderMessages(); scrollToBottom();
+          });
+        }
+      } else {
+        document.getElementById('setupError').textContent = res.error || '保存失败';
+        btn.disabled = false; btn.textContent = '进入 WeTalk';
+      }
+    });
   });
 });
 
