@@ -167,6 +167,28 @@ app.get('/api/admin/export', adminAuth, (req, res) => {
   }
 });
 
+// ─── 管理员：敏感词管理 ──────────────────────────────────
+app.get('/api/admin/sensitive-words', adminAuth, (req, res) => {
+  res.json({ success: true, words: [...sensitiveWords] });
+});
+app.post('/api/admin/sensitive-words', adminAuth, (req, res) => {
+  const { action, word } = req.body;
+  if (action === 'add' && word) sensitiveWords.add(word);
+  if (action === 'remove' && word) sensitiveWords.delete(word);
+  res.json({ success: true, words: [...sensitiveWords] });
+});
+
+// ─── 管理员：设置账号类型 ──────────────────────────────────
+app.post('/api/admin/set-account-type', adminAuth, (req, res) => {
+  const { userId, accountType } = req.body;
+  const user = users.get(userId);
+  if (!user) return res.json({ success: false, error: '用户不存在' });
+  if (!['internal', 'external'].includes(accountType)) return res.json({ success: false, error: '类型无效' });
+  user.accountType = accountType;
+  io.to(userId).emit('user-updated', sanitizeUser(user));
+  res.json({ success: true, user: sanitizeUser(user) });
+});
+
 // ─── 网络状态接口 ──────────────────────────────────────────
 app.get('/api/status', (req, res) => {
   res.json({
@@ -180,11 +202,21 @@ app.get('/api/status', (req, res) => {
 });
 
 // ─── 数据存储 ──────────────────────────────────────────────
-const verificationCodes = new Map(); // phone -> { code, expiresAt }
-const users = new Map();             // userId -> userObject
-const messages = new Map();          // chatId -> message[]
-const redPackets = new Map();        // packetId -> { senderId, amount, opened, openedAt }
-const groups = new Map();            // groupId -> GroupObject
+const verificationCodes = new Map();  // phone -> { code, expiresAt }
+const users = new Map();              // userId -> userObject
+const messages = new Map();           // chatId -> message[]
+const redPackets = new Map();         // packetId -> { senderId, amount, opened, openedAt }
+const groups = new Map();             // groupId -> GroupObject
+const loginAttempts = new Map();      // phone -> { count, lockedUntil }
+const ipRegistrations = new Map();    // ip -> { date, count }
+const inviteCodes = new Set(['888888','666666','123456']);
+const friendRequests = new Map();     // targetUserId -> [{ from, status, time, remark }]
+const friends = new Map();            // userId -> Set<friendId>
+const chatSettings = new Map();       // userId -> Map<chatId, { pinned, muted }>
+const signIns = new Map();            // userId -> { lastDate, streak, total }
+const sensitiveWords = new Set(['暴力','赌博','毒品','枪']);
+const captchaStore = new Map();       // captchaId -> { code, expiresAt }
+let captchaIdCounter = 0;
 
 // GroupObject: { id, name, avatarColor, avatarChar, createdBy, createdAt, notice, members: [{userId, role, joinedAt}] }
 
@@ -224,48 +256,114 @@ app.post('/api/send-code', (req, res) => {
   res.json({ success: true, code, message: '验证码已发送' });
 });
 
-// ─── 验证码登录 ────────────────────────────────────────────
-app.post('/api/login', (req, res) => {
-  const { phone, code } = req.body;
-  if (!phone || !code) return res.json({ success: false, error: '参数不完整' });
+// ─── 密码加密 ──────────────────────────────────────────────
+function hashPassword(pwd) {
+  return crypto.createHash('sha256').update(pwd + 'wetalk_salt_2.0').digest('hex');
+}
 
-  const stored = verificationCodes.get(phone);
-  if (!stored || stored.code !== code || Date.now() > stored.expiresAt) {
+// ─── 生成图形验证码 ────────────────────────────────────────
+app.post('/api/captcha', (req, res) => {
+  const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+  const id = `cap_${++captchaIdCounter}_${Date.now()}`;
+  captchaStore.set(id, { code, expiresAt: Date.now() + 300000 });
+  res.json({ success: true, captchaId: id, code }); // demo 返回code
+});
+
+// ─── 注册 ──────────────────────────────────────────────────
+app.post('/api/register', (req, res) => {
+  const { phone, password, captchaId, captcha, inviteCode } = req.body;
+
+  // 校验手机号
+  if (!phone || !/^1[3-9]\d{9}$/.test(phone)) return res.json({ success: false, error: '请输入有效手机号' });
+  if (users.has(phone)) return res.json({ success: false, error: '该手机号已注册' });
+
+  // 校验密码
+  if (!password || password.length < 6 || password.length > 12) return res.json({ success: false, error: '密码需6-12位' });
+
+  // 校验验证码
+  const storedCap = captchaStore.get(captchaId);
+  if (!storedCap || storedCap.code !== captcha || Date.now() > storedCap.expiresAt) {
     return res.json({ success: false, error: '验证码错误或已过期' });
   }
-  verificationCodes.delete(phone);
+  captchaStore.delete(captchaId);
 
-  // 查找或创建用户
-  let userId = phone;
-  if (!users.has(userId)) {
-    const ac = getAvatarConfig(phone);
-    users.set(userId, {
-      id: userId,
-      name: `用户${phone.slice(-4)}`,
-      phone,
-      avatar: null,
-      avatarColor: ac.color,
-      avatarChar: ac.char,
-      realName: '',
-      idCard: '',
-      realNameVerified: false,
-      status: 'active',
-      online: false,
-      socketId: null,
-      balance: 0,
-      createdAt: Date.now(),
-    });
+  // 校验邀请码
+  if (!inviteCode || !inviteCodes.has(inviteCode)) return res.json({ success: false, error: '邀请码无效' });
+
+  // IP注册限制
+  const clientIp = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+  const today = new Date().toDateString();
+  const ipReg = ipRegistrations.get(clientIp);
+  if (ipReg && ipReg.date === today && ipReg.count >= 20) {
+    return res.json({ success: false, error: '同一IP一天注册已达上限' });
   }
 
-  // 检查是否被封禁
-  const user = users.get(userId);
-  if (user.status === 'banned') {
-    return res.json({ success: false, error: '账户已被封禁，请联系管理员' });
+  // 创建用户
+  const ac = getAvatarConfig(phone);
+  const userId = phone;
+  users.set(userId, {
+    id: userId, name: `用户${phone.slice(-4)}`, phone,
+    password: hashPassword(password),
+    avatar: null, avatarColor: ac.color, avatarChar: ac.char,
+    gender: '', realName: '', idCard: '', realNameVerified: false,
+    verificationStatus: 'none',
+    status: 'active', online: false, socketId: null,
+    accountType: 'internal', // internal / external
+    balance: 0, points: 0,
+    inviteCode, inviter: null,
+    createdAt: Date.now(),
+  });
+
+  // 更新IP注册计数
+  if (ipReg && ipReg.date === today) ipReg.count++;
+  else ipRegistrations.set(clientIp, { date: today, count: 1 });
+
+  // 通知管理员有新用户
+  console.log(`[注册] 新用户 ${phone} 使用邀请码 ${inviteCode}`);
+
+  res.json({ success: true, message: '注册成功', needProfile: true, userId });
+});
+
+// ─── 密码登录 ──────────────────────────────────────────────
+app.post('/api/login', (req, res) => {
+  const { phone, password } = req.body;
+  if (!phone || !password) return res.json({ success: false, error: '请输入手机号和密码' });
+
+  const user = users.get(phone);
+  if (!user) return res.json({ success: false, error: '账号未注册' });
+
+  // 检查封禁
+  if (user.status === 'banned') return res.json({ success: false, error: '账号已被封禁' });
+
+  // 检查登录锁定
+  const attempt = loginAttempts.get(phone);
+  if (attempt && attempt.lockedUntil > Date.now()) {
+    const mins = Math.ceil((attempt.lockedUntil - Date.now()) / 60000);
+    return res.json({ success: false, error: `密码错误次数过多，请${mins}分钟后再试` });
   }
+
+  // 验证密码
+  if (hashPassword(password) !== user.password) {
+    const count = (attempt?.count || 0) + 1;
+    const lockMins = Math.min(5 * Math.ceil(count / 5), 30);
+    loginAttempts.set(phone, { count, lockedUntil: Date.now() + lockMins * 60000 });
+    const remaining = 5 - (count % 5 || 5);
+    if (remaining < 5) {
+      return res.json({ success: false, error: `密码错误，还可尝试${remaining}次` });
+    }
+    return res.json({ success: false, error: '密码错误' });
+  }
+
+  // 登录成功，清除锁定记录
+  loginAttempts.delete(phone);
+
+  // 检查是否需要完善资料
+  const needProfile = !user.name || user.name.startsWith('用户') || !user.gender;
 
   res.json({
     success: true,
     user: sanitizeUser(user),
+    needProfile,
   });
 });
 
@@ -296,8 +394,12 @@ function sanitizeUser(u) {
     avatar: u.avatar, avatarColor: u.avatarColor, avatarChar: u.avatarChar,
     realName: u.realName, realNameVerified: u.realNameVerified,
     verificationStatus: u.verificationStatus || 'none',
+    gender: u.gender || '',
+    accountType: u.accountType || 'internal',
     status: u.status || 'active',
-    online: u.online, balance: u.balance,
+    online: u.online, balance: u.balance || 0,
+    points: u.points || 0,
+    createdAt: u.createdAt || 0,
   };
 }
 
@@ -394,6 +496,118 @@ io.on('connection', (socket) => {
     user.avatar = dataUrl;
     callback?.({ success: true, avatar: dataUrl });
     io.emit('user-updated', sanitizeUser(user));
+  });
+
+  // ─── 更新性别 ──────────────────────────────────────────
+  socket.on('update-gender', ({ userId, gender }, callback) => {
+    const user = users.get(userId);
+    if (!user || !['male','female'].includes(gender)) return callback?.({ success: false, error: '参数错误' });
+    user.gender = gender;
+    callback?.({ success: true, user: sanitizeUser(user) });
+    io.emit('user-updated', sanitizeUser(user));
+  });
+
+  // ─── 完善资料（注册后） ──────────────────────────────
+  socket.on('complete-profile', ({ userId, name, gender, avatar }, callback) => {
+    const user = users.get(userId);
+    if (!user) return callback?.({ success: false, error: '用户不存在' });
+    if (name) { user.name = name.trim().slice(0, 12); const ac = getAvatarConfig(name); user.avatarColor = ac.color; user.avatarChar = ac.char; }
+    if (gender) user.gender = gender;
+    if (avatar && avatar.startsWith('data:image/')) user.avatar = avatar;
+    callback?.({ success: true, user: sanitizeUser(user) });
+    io.emit('user-updated', sanitizeUser(user));
+  });
+
+  // ─── 好友请求 ──────────────────────────────────────────
+  socket.on('send-friend-request', ({ to, remark }, callback) => {
+    const from = socket.userId;
+    if (!from || !to || from === to) return callback?.({ success: false, error: '参数错误' });
+    const targetUser = users.get(to);
+    if (!targetUser) return callback?.({ success: false, error: '用户不存在' });
+    const userFriends = friends.get(from);
+    if (userFriends?.has(to)) return callback?.({ success: false, error: '已是好友' });
+    const reqs = friendRequests.get(to) || [];
+    if (reqs.some(r => r.from === from && r.status === 'pending')) return callback?.({ success: false, error: '已发送过请求' });
+    if (!friendRequests.has(to)) friendRequests.set(to, []);
+    friendRequests.get(to).push({ from, status: 'pending', time: Date.now(), remark: remark || '' });
+    if (targetUser.online) io.to(to).emit('new-friend-request', { from: sanitizeUser(users.get(from)), remark: remark || '' });
+    callback?.({ success: true });
+  });
+
+  socket.on('accept-friend-request', ({ from }, callback) => {
+    const userId = socket.userId;
+    const reqs = friendRequests.get(userId) || [];
+    const req = reqs.find(r => r.from === from && r.status === 'pending');
+    if (!req) return callback?.({ success: false, error: '请求不存在' });
+    req.status = 'accepted';
+    if (!friends.has(userId)) friends.set(userId, new Set());
+    if (!friends.has(from)) friends.set(from, new Set());
+    friends.get(userId).add(from);
+    friends.get(from).add(userId);
+    const me = users.get(userId);
+    if (me?.online) io.to(from).emit('friend-added', { user: sanitizeUser(me) });
+    callback?.({ success: true });
+  });
+
+  socket.on('reject-friend-request', ({ from }, callback) => {
+    const userId = socket.userId;
+    const reqs = friendRequests.get(userId) || [];
+    const req = reqs.find(r => r.from === from && r.status === 'pending');
+    if (!req) return callback?.({ success: false, error: '请求不存在' });
+    req.status = 'rejected';
+    callback?.({ success: true });
+  });
+
+  socket.on('get-friend-requests', (callback) => {
+    const reqs = friendRequests.get(socket.userId) || [];
+    callback(reqs.map(r => ({ ...r, fromUser: r.from ? sanitizeUser(users.get(r.from)) : null })));
+  });
+
+  socket.on('get-friends', (callback) => {
+    const userFriends = friends.get(socket.userId);
+    if (!userFriends) return callback([]);
+    callback([...userFriends].map(id => users.get(id)).filter(Boolean).map(u => sanitizeUser(u)));
+  });
+
+  // ─── 聊天设置 ──────────────────────────────────────────
+  function getChatSettings(userId) {
+    if (!chatSettings.has(userId)) chatSettings.set(userId, new Map());
+    return chatSettings.get(userId);
+  }
+  socket.on('toggle-chat-pin', ({ chatId }, callback) => {
+    const s = getChatSettings(socket.userId); const cur = s.get(chatId) || {}; cur.pinned = !cur.pinned; s.set(chatId, cur);
+    callback?.({ success: true, pinned: cur.pinned });
+  });
+  socket.on('toggle-chat-mute', ({ chatId }, callback) => {
+    const s = getChatSettings(socket.userId); const cur = s.get(chatId) || {}; cur.muted = !cur.muted; s.set(chatId, cur);
+    callback?.({ success: true, muted: cur.muted });
+  });
+  socket.on('delete-chat', ({ chatId }, callback) => {
+    if (messages.has(chatId)) messages.delete(chatId);
+    callback?.({ success: true });
+  });
+
+  // ─── 每日签到 ──────────────────────────────────────────
+  socket.on('check-in', (callback) => {
+    const userId = socket.userId;
+    const user = users.get(userId);
+    if (!user) return callback?.({ success: false, error: '未登录' });
+    const today = new Date().toDateString();
+    const record = signIns.get(userId);
+    if (record && record.lastDate === today) return callback?.({ success: false, error: '今日已签到' });
+    const streak = (record && record.lastDate === new Date(Date.now() - 86400000).toDateString()) ? (record.streak || 0) + 1 : 1;
+    const pointsEarned = Math.min(10 + streak, 50);
+    signIns.set(userId, { lastDate: today, streak, total: (record?.total || 0) + 1 });
+    user.points = (user.points || 0) + pointsEarned;
+    callback?.({ success: true, points: pointsEarned, total: user.points, streak });
+    io.emit('user-updated', sanitizeUser(user));
+  });
+
+  // ─── 检测敏感词 ──────────────────────────────────────────
+  socket.on('check-sensitive', ({ text }, callback) => {
+    let hit = '';
+    for (const w of sensitiveWords) { if (text.includes(w)) { hit = w; break; } }
+    callback({ hasSensitive: !!hit, word: hit });
   });
 
   // ─── 实名认证 ──────────────────────────────────────────

@@ -193,115 +193,219 @@ function showToast(msg, duration = 2000) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 手机验证码登录
+// 登录 / 注册
 // ═══════════════════════════════════════════════════════════════
-phoneInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') codeInput.focus(); });
-codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
-sendCodeBtn.addEventListener('click', sendCode);
-loginBtn.addEventListener('click', doLogin);
+let selectedGender = '';
+let setupAvatarDataUrl = '';
 
-async function sendCode() {
-  const phone = phoneInput.value.trim();
-  if (!/^1\d{10}$/.test(phone)) {
-    showToast('请输入有效手机号');
-    phoneInput.focus();
-    return;
-  }
-  sendCodeBtn.disabled = true;
+// ─── Login/Register Tab ──────────────────────────────────
+document.querySelectorAll('.login-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.login-form').forEach(f => f.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab === 'login' ? 'loginForm' : 'registerForm').classList.add('active');
+    document.getElementById('loginError').textContent = '';
+    document.getElementById('regError').textContent = '';
+  });
+});
+
+// ─── 密码可见切换 ────────────────────────────────────────
+document.querySelectorAll('.pw-toggle').forEach(el => {
+  el.addEventListener('click', () => {
+    const input = el.parentElement.querySelector('input');
+    input.type = input.type === 'password' ? 'text' : 'password';
+    el.textContent = input.type === 'password' ? '👁' : '👁‍🗨';
+  });
+});
+
+// ─── Captcha 刷新 ────────────────────────────────────────
+let currentCaptchaId = '';
+let currentRegCaptchaId = '';
+
+async function refreshCaptcha(imgEl, isLogin) {
   try {
-    const res = await fetch('/api/send-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone }),
-    });
+    const res = await fetch('/api/captcha', { method: 'POST' });
     const data = await res.json();
     if (data.success) {
-      showToast('验证码已发送（Demo: ' + data.code + '）');
-      codeInput.value = data.code; // demo 自动填充
-      startCodeCountdown();
-    } else {
-      showToast(data.error || '发送失败');
-      sendCodeBtn.disabled = false;
+      imgEl.textContent = data.code;
+      if (isLogin) currentCaptchaId = data.captchaId;
+      else currentRegCaptchaId = data.captchaId;
     }
-  } catch (e) {
-    showToast('网络错误');
-    sendCodeBtn.disabled = false;
-  }
+  } catch(e) { /* ignore */ }
 }
 
-function startCodeCountdown() {
-  codeCountdown = 60;
-  sendCodeBtn.textContent = `${codeCountdown}s`;
-  clearInterval(codeTimer);
-  codeTimer = setInterval(() => {
-    codeCountdown--;
-    if (codeCountdown <= 0) {
-      clearInterval(codeTimer);
-      sendCodeBtn.disabled = false;
-      sendCodeBtn.textContent = '重新获取';
-    } else {
-      sendCodeBtn.textContent = `${codeCountdown}s`;
-    }
-  }, 1000);
-}
+document.getElementById('loginCaptchaImg').addEventListener('click', function() { refreshCaptcha(this, true); });
+document.getElementById('regCaptchaImg').addEventListener('click', function() { refreshCaptcha(this, false); });
 
+// ─── 初始加载验证码 ──────────────────────────────────────
+refreshCaptcha(document.getElementById('loginCaptchaImg'), true);
+refreshCaptcha(document.getElementById('regCaptchaImg'), false);
+
+// ─── 键盘事件 ────────────────────────────────────────────
+document.getElementById('loginPhone').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPassword').focus(); });
+document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('loginCaptcha').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('regPhone').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('regPassword').focus(); });
+document.getElementById('regPassword').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('regConfirm').focus(); });
+document.getElementById('regConfirm').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('regCaptcha').focus(); });
+document.getElementById('regCaptcha').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('regInvite').focus(); });
+document.getElementById('regInvite').addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+
+loginBtn.addEventListener('click', doLogin);
+document.getElementById('registerBtn').addEventListener('click', doRegister);
+
+// ─── 登录 ────────────────────────────────────────────────
 async function doLogin() {
-  const phone = phoneInput.value.trim();
-  const code = codeInput.value.trim();
-  if (!phone || !code) { showToast('请填写手机号和验证码'); return; }
+  const phone = document.getElementById('loginPhone').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const captcha = document.getElementById('loginCaptcha').value.trim();
+  const errEl = document.getElementById('loginError');
 
-  loginBtn.disabled = true;
-  loginBtn.textContent = '登录中...';
+  if (!phone || !/^1[3-9]\d{9}$/.test(phone)) { errEl.textContent = '请输入有效手机号'; return; }
+  if (!password || password.length < 6) { errEl.textContent = '请输入密码（6-12位）'; return; }
+  if (!captcha) { errEl.textContent = '请输入验证码'; return; }
+
+  loginBtn.disabled = true; loginBtn.textContent = '登录中...'; errEl.textContent = '';
 
   try {
     const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, code }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, password }),
     });
     const data = await res.json();
-    if (!data.success) {
-      showToast(data.error || '登录失败');
-      loginBtn.disabled = false;
-      loginBtn.textContent = '登 录';
-      return;
-    }
+    if (!data.success) { errEl.textContent = data.error || '登录失败'; loginBtn.disabled = false; loginBtn.textContent = '登 录'; refreshCaptcha(document.getElementById('loginCaptchaImg'), true); return; }
 
     currentUser = data.user;
+    if (data.needProfile) { showProfilePage(); loginBtn.disabled = false; loginBtn.textContent = '登 录'; return; }
     enterMain();
+    goOnline();
+  } catch (e) { errEl.textContent = '网络错误'; loginBtn.disabled = false; loginBtn.textContent = '登 录'; }
+}
 
-    // 通过 socket 设置在线
-    socket.emit('user-online', currentUser.id, (res) => {
-      if (!res.success) return;
-      currentUser = res.user;
-      contacts = new Map();
-      res.users.forEach(u => contacts.set(u.id, u));
-      res.chats?.forEach(c => {
-        if (c.with && !contacts.has(c.with.id)) contacts.set(c.with.id, c.with);
-      });
-      updateProfileUI();
-      renderContactList();
-      renderChatList();
-      // 自动打开第一个聊天
-      if (res.chats?.length > 0) {
-        openChat(res.chats[0].with.id);
-        socket.emit('get-messages', { with: res.chats[0].with.id }, (msgs) => {
-          const chatId = getChatId(currentUser.id, res.chats[0].with.id);
-          messageCache.set(chatId, msgs || []);
-          renderMessages();
-          scrollToBottom();
-        });
-      }
+// ─── 注册 ────────────────────────────────────────────────
+async function doRegister() {
+  const phone = document.getElementById('regPhone').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const confirm = document.getElementById('regConfirm').value;
+  const captcha = document.getElementById('regCaptcha').value.trim();
+  const inviteCode = document.getElementById('regInvite').value.trim();
+  const errEl = document.getElementById('regError');
+  const btn = document.getElementById('registerBtn');
+
+  if (!phone || !/^1[3-9]\d{9}$/.test(phone)) { errEl.textContent = '请输入有效手机号'; return; }
+  if (!password || password.length < 6 || password.length > 12) { errEl.textContent = '密码需6-12位'; return; }
+  if (password !== confirm) { errEl.textContent = '两次密码不一致'; return; }
+  if (!captcha) { errEl.textContent = '请输入验证码'; return; }
+  if (!inviteCode) { errEl.textContent = '请输入邀请码'; return; }
+
+  btn.disabled = true; btn.textContent = '注册中...'; errEl.textContent = '';
+
+  try {
+    const res = await fetch('/api/register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, password, captchaId: currentRegCaptchaId, captcha, inviteCode }),
     });
-  } catch (e) {
-    showToast('网络错误');
-    loginBtn.disabled = false;
-    loginBtn.textContent = '登 录';
-  }
+    const data = await res.json();
+    if (!data.success) { errEl.textContent = data.error || '注册失败'; btn.disabled = false; btn.textContent = '注 册'; refreshCaptcha(document.getElementById('regCaptchaImg'), false); return; }
+
+    // 自动填入登录
+    document.getElementById('loginPhone').value = phone;
+    document.getElementById('loginPassword').value = password;
+    document.querySelector('[data-tab="login"]').click();
+    document.getElementById('loginError').textContent = '注册成功，请登录';
+    document.getElementById('loginError').style.color = 'var(--green)';
+    btn.disabled = false; btn.textContent = '注 册';
+    if (data.needProfile) {
+      currentUser = { id: data.userId, phone };
+      showProfilePage();
+    }
+  } catch (e) { errEl.textContent = '网络错误'; btn.disabled = false; btn.textContent = '注 册'; }
+}
+
+// ─── 完善资料页 ──────────────────────────────────────────
+function showProfilePage() {
+  loginPage.classList.remove('active');
+  document.getElementById('profilePage').classList.add('active');
+  selectedGender = '';
+  setupAvatarDataUrl = '';
+  document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('setupAvatarChar').textContent = '?';
+  document.getElementById('setupAvatarChar').style.display = '';
+  document.getElementById('setupAvatar').querySelector('img')?.remove();
+}
+
+document.querySelectorAll('.gender-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedGender = btn.dataset.gender;
+  });
+});
+
+document.getElementById('setupAvatar').addEventListener('click', () => document.getElementById('setupAvatarInput').click());
+document.getElementById('setupAvatarInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file || file.size > 2*1024*1024) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    setupAvatarDataUrl = ev.target.result;
+    const img = document.createElement('img');
+    img.src = setupAvatarDataUrl;
+    document.getElementById('setupAvatarChar').style.display = 'none';
+    document.getElementById('setupAvatar').querySelector('img')?.remove();
+    document.getElementById('setupAvatar').insertBefore(img, document.querySelector('.pp-setup-overlay'));
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('setupCompleteBtn').addEventListener('click', () => {
+  const name = document.getElementById('setupName').value.trim() || `用户${(currentUser?.phone||'').slice(-4)}`;
+  const btn = document.getElementById('setupCompleteBtn');
+  btn.disabled = true; btn.textContent = '处理中...';
+
+  socket.emit('complete-profile', {
+    userId: currentUser.id, name, gender: selectedGender, avatar: setupAvatarDataUrl,
+  }, (res) => {
+    if (res.success) {
+      currentUser = res.user;
+      document.getElementById('profilePage').classList.remove('active');
+      loginPage.classList.remove('active');
+      mainPage.classList.add('active');
+      updateProfileUI();
+      goOnline();
+    } else {
+      document.getElementById('setupError').textContent = res.error || '保存失败';
+    }
+    btn.disabled = false; btn.textContent = '进入 WeTalk';
+  });
+});
+
+// ─── 登录后上线 ──────────────────────────────────────────
+function goOnline() {
+  socket.emit('user-online', currentUser.id, (res) => {
+    if (!res.success) return;
+    currentUser = res.user;
+    contacts = new Map();
+    res.users.forEach(u => contacts.set(u.id, u));
+    res.chats?.forEach(c => { if (c.with && !contacts.has(c.with.id)) contacts.set(c.with.id, c.with); });
+    updateProfileUI();
+    renderContactList();
+    renderChatList();
+    if (res.chats?.length > 0) {
+      openChat(res.chats[0].with.id);
+      socket.emit('get-messages', { with: res.chats[0].with.id }, (msgs) => {
+        const chatId = getChatId(currentUser.id, res.chats[0].with.id);
+        messageCache.set(chatId, msgs || []);
+        renderMessages(); scrollToBottom();
+      });
+    }
+  });
 }
 
 function enterMain() {
   loginPage.classList.remove('active');
+  document.getElementById('profilePage')?.classList.remove('active');
   mainPage.classList.add('active');
   updateProfileUI();
 }

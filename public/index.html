@@ -9,39 +9,60 @@
 <body>
 
 <!-- ============================================================ -->
-<!-- 登录页 -->
+<!-- 登录/注册页 -->
 <!-- ============================================================ -->
 <div id="loginPage" class="page active">
-  <div class="login-bg">
-    <div class="login-bg-pattern"></div>
-  </div>
+  <div class="login-bg"><div class="login-bg-pattern"></div></div>
   <div class="login-card">
     <div class="login-logo">
-      <div class="logo-icon">
-        <svg viewBox="0 0 60 60" width="60" height="60">
-          <rect x="2" y="2" width="56" height="56" rx="14" fill="#fff"/>
-          <path d="M20 22c0-4.4 4.5-8 10-8s10 3.6 10 8c0 4.4-4.5 8-10 8s-10-3.6-10-8z" fill="#06b025"/>
-          <path d="M16 34c0-5.5 6.3-10 14-10s14 4.5 14 10v4H16v-4z" fill="#06b025"/>
-          <circle cx="28" cy="19" r="2.5" fill="#fff" opacity=".8"/>
-          <circle cx="34" cy="19" r="2.5" fill="#fff" opacity=".8"/>
-          <line x1="40" y1="13" x2="44" y2="9" stroke="#06b025" stroke-width="3" stroke-linecap="round"/>
-        </svg>
-      </div>
       <h1>WeTalk</h1>
-      <p class="login-subtitle">手机验证 · 安全畅聊</p>
+      <p class="login-subtitle">安全 · 畅聊 · 自在</p>
+    </div>
+    <div class="login-tabs">
+      <button class="login-tab active" data-tab="login">登录</button>
+      <button class="login-tab" data-tab="register">注册</button>
     </div>
 
-    <div class="login-form">
-      <div class="input-group phone-group">
-        <span class="phone-prefix">+86</span>
-        <input type="tel" id="phoneInput" placeholder="请输入手机号" maxlength="11" autofocus>
-      </div>
-      <div class="input-group code-group">
-        <input type="text" id="codeInput" placeholder="请输入验证码" maxlength="6" inputmode="numeric">
-        <button id="sendCodeBtn" class="code-btn">获取验证码</button>
-      </div>
+    <!-- 登录表单 -->
+    <div id="loginForm" class="login-form active">
+      <div class="input-group"><input type="tel" id="loginPhone" placeholder="手机号" maxlength="11" autofocus></div>
+      <div class="input-group" style="position:relative"><input type="password" id="loginPassword" placeholder="密码" maxlength="12"><span class="pw-toggle" id="loginPwToggle">👁</span></div>
+      <div class="input-group captcha-group"><input type="text" id="loginCaptcha" placeholder="验证码" maxlength="6"><span class="captcha-img" id="loginCaptchaImg">A1B2C3</span></div>
+      <div id="loginError" class="form-error"></div>
       <button id="loginBtn" class="btn-primary">登 录</button>
-      <p class="login-tip">登录即表示同意《服务条款》和《隐私政策》</p>
+      <p class="login-tip" style="cursor:pointer" id="forgotPwdLink">忘记密码？</p>
+    </div>
+
+    <!-- 注册表单 -->
+    <div id="registerForm" class="login-form">
+      <div class="input-group"><input type="tel" id="regPhone" placeholder="手机号" maxlength="11"></div>
+      <div class="input-group" style="position:relative"><input type="password" id="regPassword" placeholder="设置密码（6-12位）" maxlength="12"><span class="pw-toggle" id="regPwToggle">👁</span></div>
+      <div class="input-group" style="position:relative"><input type="password" id="regConfirm" placeholder="确认密码" maxlength="12"></div>
+      <div class="input-group captcha-group"><input type="text" id="regCaptcha" placeholder="验证码" maxlength="6"><span class="captcha-img" id="regCaptchaImg">D4E5F6</span></div>
+      <div class="input-group"><input type="text" id="regInvite" placeholder="邀请码（必填）" maxlength="6"></div>
+      <div id="regError" class="form-error"></div>
+      <button id="registerBtn" class="btn-primary">注 册</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 完善资料页 -->
+<!-- ============================================================ -->
+<div id="profilePage" class="page">
+  <div class="login-bg"><div class="login-bg-pattern"></div></div>
+  <div class="login-card">
+    <div class="login-logo"><h1>完善资料</h1><p class="login-subtitle">设置你的个人资料</p></div>
+    <div class="login-form" style="text-align:center">
+      <div class="pp-setup-avatar" id="setupAvatar"><span id="setupAvatarChar">?</span><div class="pp-setup-overlay">📷</div></div>
+      <input type="file" id="setupAvatarInput" accept="image/*" hidden>
+      <div style="display:flex;gap:.5rem;justify-content:center;margin:.8rem 0">
+        <button class="gender-btn" data-gender="male" id="genderMale">🙋 男</button>
+        <button class="gender-btn" data-gender="female" id="genderFemale">🙆 女</button>
+      </div>
+      <div class="input-group"><input type="text" id="setupName" placeholder="输入昵称（选填）" maxlength="12"></div>
+      <div id="setupError" class="form-error"></div>
+      <button id="setupCompleteBtn" class="btn-primary">进入 WeTalk</button>
     </div>
   </div>
 </div>
