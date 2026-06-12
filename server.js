@@ -189,6 +189,17 @@ app.post('/api/admin/set-account-type', adminAuth, (req, res) => {
   res.json({ success: true, user: sanitizeUser(user) });
 });
 
+// ─── 管理员：生成邀请码 ──────────────────────────────────
+app.post('/api/admin/generate-invite', adminAuth, (req, res) => {
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  inviteCodes.add(code);
+  res.json({ success: true, code, allCodes: [...inviteCodes] });
+});
+
+app.get('/api/admin/invite-codes', adminAuth, (req, res) => {
+  res.json({ success: true, codes: [...inviteCodes] });
+});
+
 // ─── 网络状态接口 ──────────────────────────────────────────
 app.get('/api/status', (req, res) => {
   res.json({

@@ -235,6 +235,12 @@
     <button class="filter-btn" data-filter="banned">已封禁</button>
   </div>
 
+  <div style="padding:0 1.2rem .5rem;display:flex;align-items:center;gap:.5rem;flex-shrink:0">
+    <span style="font-size:.78rem;color:#888">邀请码：</span>
+    <span id="inviteCodeList" style="font-size:.78rem;color:#333;font-weight:600">加载中...</span>
+    <button class="logout-btn" id="genInviteBtn" style="font-size:.72rem;padding:.2rem .5rem">🎲 生成</button>
+  </div>
+
   <div class="table-wrap">
     <table>
       <thead>
@@ -567,6 +573,21 @@ function exportCSV() {
   if (!adminToken) { showToast('请先登录'); return; }
   window.open('/api/admin/export?format=csv', '_blank');
 }
+
+async function loadInviteCodes() {
+  try {
+    const res = await fetch('/api/admin/invite-codes', { headers: { 'x-admin-token': adminToken } });
+    if (res.ok) { const d = await res.json(); if (d.success) document.getElementById('inviteCodeList').textContent = d.codes.join(', '); }
+  } catch(e) {}
+}
+document.getElementById('genInviteBtn').addEventListener('click', async () => {
+  try {
+    const res = await fetch('/api/admin/generate-invite', { method: 'POST', headers: { 'x-admin-token': adminToken } });
+    const d = await res.json();
+    if (d.success) { document.getElementById('inviteCodeList').textContent = d.allCodes.join(', '); showToast('新邀请码：' + d.code); }
+  } catch(e) { showToast('生成失败'); }
+});
+const _origEnter = enterDashboard; enterDashboard = function() { _origEnter(); loadInviteCodes(); };
 
 console.log('📊 WeTalk 管理后台已加载');
 </script>
