@@ -411,6 +411,7 @@ function goOnline() {
     updateProfileUI();
     renderContactList();
     renderChatList();
+    loadFriends();
     if (res.chats?.length > 0) {
       openChat(res.chats[0].with.id);
       socket.emit('get-messages', { with: res.chats[0].with.id }, (msgs) => {
@@ -549,6 +550,17 @@ socket.on('group-updated', (group) => {
     updateChatHeader(group.id);
   }
   renderChatList();
+});
+
+socket.on('new-friend-request', ({ from }) => {
+  showToast(`来自 ${from?.name || '用户'} 的好友请求`);
+  loadFriends();
+});
+
+socket.on('friend-added', ({ user }) => {
+  if (user) contacts.set(user.id, user);
+  loadFriends();
+  renderContactList();
 });
 
 socket.on('user-typing', ({ from, name }) => {
@@ -786,9 +798,9 @@ function renderChatList() {
 
   chatList.innerHTML = items.map(c => {
     const u = c.user;
-    const avatarHtml = u.avatar
-      ? `<img src="${u.avatar}" alt="">`
-      : (u.avatarChar || '?');
+    const chatId = getChatId(currentUser.id, u.id);
+    const settings = getLocalChatSettings(chatId);
+    const avatarHtml = u.avatar ? `<img src="${u.avatar}" alt="">` : (u.avatarChar || '?');
     const avatarBg = u.avatar ? '' : (u.avatarColor || '#666');
     const lastText = !c.lastMsg ? '暂无消息'
       : c.lastMsg.type === 'recalled' ? (c.lastMsg.from === currentUser.id ? '你撤回了一条消息' : '对方撤回了一条消息')
@@ -798,22 +810,32 @@ function renderChatList() {
     const isActive = activeChat === u.id;
 
     return `
-      <div class="chat-item ${isActive ? 'active' : ''}" onclick="openChat('${u.id}')">
+      <div class="chat-item ${isActive ? 'active' : ''}" onclick="openChat('${u.id}')" data-pinned="${settings?.pinned ? '1' : '0'}">
         <div class="avatar" style="background:${avatarBg}">
           ${avatarHtml}
           <span class="online-dot ${u.online ? '' : 'offline'}"></span>
         </div>
         <div class="chat-item-info">
-          <div class="chat-item-name">${escapeHtml(u.name)} ${u.realNameVerified ? '<span style="font-size:.6rem;color:#1aad19">✓</span>' : ''}</div>
+          <div class="chat-item-name">${escapeHtml(u.name)} ${settings?.pinned ? '📌' : ''} ${settings?.muted ? '🔇' : ''}</div>
           <div class="chat-item-preview">${lastText}</div>
         </div>
         <div class="chat-item-right">
           <div class="chat-item-time">${timeStr}</div>
-          ${c.unread > 0 ? `<div class="unread-badge">${c.unread > 99 ? '99+' : c.unread}</div>` : ''}
+          ${c.unread > 0 && !settings?.muted ? `<div class="unread-badge">${c.unread > 99 ? '99+' : c.unread}</div>` : ''}
+          <div style="display:flex;gap:2px;margin-top:4px">
+            <span class="chat-action-btn" onclick="event.stopPropagation();togglePin('${u.id}')" title="${settings?.pinned ? '取消置顶' : '置顶'}">📌</span>
+            <span class="chat-action-btn" onclick="event.stopPropagation();toggleMute('${u.id}')" title="${settings?.muted ? '取消免打扰' : '免打扰'}">🔇</span>
+            <span class="chat-action-btn" onclick="event.stopPropagation();deleteChat('${u.id}')" title="删除聊天">🗑</span>
+          </div>
         </div>
       </div>
     `;
   }).join('');
+
+  // 置顶聊天排最前
+  const parent = chatList;
+  const pinnedItems = parent.querySelectorAll('[data-pinned="1"]');
+  pinnedItems.forEach(el => parent.insertBefore(el, parent.firstChild));
 
   if (items.length === 0) {
     chatList.innerHTML = `
@@ -828,44 +850,178 @@ function renderChatList() {
 // ═══════════════════════════════════════════════════════════════
 // 联系人列表渲染
 // ═══════════════════════════════════════════════════════════════
+let myFriends = [];       // 好友列表
+let pendingReqs = [];     // 好友申请列表
+
+function loadFriends() {
+  socket.emit('get-friends', (list) => { myFriends = list || []; renderContactList(); });
+  socket.emit('get-friend-requests', (list) => { pendingReqs = list || []; renderContactList(); });
+}
+
 function renderContactList() {
-  const items = Array.from(contacts.values())
-    .filter(u => u.id !== currentUser.id)
-    .sort((a, b) => (b.online ? 1 : 0) - (a.online ? 1 : 0));
+  contactList.innerHTML = '';
 
-  contactList.innerHTML = items.map(u => {
-    const avatarHtml = u.avatar
-      ? `<img src="${u.avatar}" alt="">`
-      : (u.avatarChar || '?');
-    const avatarBg = u.avatar ? '' : (u.avatarColor || '#666');
-    const chatId = getChatId(currentUser.id, u.id);
-    const msgs = messageCache.get(chatId) || [];
-    const unread = msgs.filter(m => m.from === u.id && m.to === currentUser.id && m.status !== 'read').length;
-
-    return `
-      <div class="contact-item" onclick="openChat('${u.id}')">
-        <div class="avatar" style="background:${avatarBg}">
-          ${avatarHtml}
-          <span class="online-dot ${u.online ? '' : 'offline'}"></span>
-        </div>
-        <div style="flex:1;min-width:0">
-          <div class="contact-name">${escapeHtml(u.name)} ${u.realNameVerified ? '<span style="font-size:.6rem;color:#1aad19">✓</span>' : ''}</div>
-          <div class="contact-status">${u.online ? '在线' : '离线'}${u.realNameVerified ? ' · 已实名' : ''}</div>
-        </div>
-        ${unread > 0 ? `<div class="unread-badge">${unread > 99 ? '99+' : unread}</div>` : ''}
+  // 新的朋友
+  const pendingCount = pendingReqs.filter(r => r.status === 'pending').length;
+  const frHtml = `
+    <div class="contact-item" id="newFriendsBtn" style="cursor:pointer">
+      <div class="avatar" style="background:#f90;border-radius:50%">👤</div>
+      <div style="flex:1;min-width:0">
+        <div class="contact-name">新的朋友</div>
+        <div class="contact-status">${pendingCount > 0 ? pendingCount + '个待处理' : '暂无申请'}</div>
       </div>
-    `;
-  }).join('');
+      ${pendingCount > 0 ? `<div class="unread-badge">${pendingCount}</div>` : ''}
+    </div>`;
+  contactList.innerHTML += frHtml;
 
-  if (items.length === 0) {
-    contactList.innerHTML = `
-      <div style="text-align:center;padding:2rem 1rem;color:#666;font-size:.82rem">
-        <p style="font-size:2rem;margin-bottom:.5rem">📭</p>
-        <p>暂无联系人</p>
-        <p style="margin-top:.3rem;font-size:.75rem;color:#888">点击右上角 ➕ 添加好友</p>
-      </div>`;
+  // 好友列表 A-Z 排序
+  if (myFriends.length === 0) {
+    contactList.innerHTML += `<div style="text-align:center;padding:1.5rem 1rem;color:#666;font-size:.78rem"><p>暂无好友，点击上方「新的朋友」搜索添加</p></div>`;
+  } else {
+    const sorted = [...myFriends].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+    let lastLetter = '';
+    sorted.forEach(u => {
+      const letter = u.name.charAt(0).toUpperCase();
+      if (letter !== lastLetter) {
+        contactList.innerHTML += `<div style="padding:.4rem .8rem .2rem;font-size:.72rem;color:#666;font-weight:600">${letter}</div>`;
+        lastLetter = letter;
+      }
+      const avatarHtml = u.avatar ? `<img src="${u.avatar}" alt="">` : (u.avatarChar || '?');
+      const avatarBg = u.avatar ? '' : (u.avatarColor || '#666');
+      contactList.innerHTML += `
+        <div class="contact-item" onclick="openChat('${u.id}')">
+          <div class="avatar" style="background:${avatarBg}">${avatarHtml}<span class="online-dot ${u.online ? '' : 'offline'}"></span></div>
+          <div style="flex:1;min-width:0">
+            <div class="contact-name">${escapeHtml(u.name)} ${u.realNameVerified ? '<span style="font-size:.6rem;color:#1aad19">✓</span>' : ''}</div>
+            <div class="contact-status">${u.online ? '在线' : '离线'}</div>
+          </div>
+        </div>`;
+    });
+  }
+
+  // 群聊列表
+  if (myGroups.length > 0) {
+    contactList.innerHTML += `<div style="padding:.5rem .8rem .2rem;font-size:.72rem;color:#666;font-weight:600;border-top:1px solid rgba(255,255,255,.05);margin-top:.3rem">群聊 (${myGroups.length})</div>`;
+    myGroups.forEach(g => {
+      contactList.innerHTML += `
+        <div class="contact-item" onclick="openChat('${g.id}')">
+          <div class="avatar" style="background:${g.avatarColor||'#3498db'}">${g.avatarChar||'群'}</div>
+          <div style="flex:1;min-width:0">
+            <div class="contact-name">${escapeHtml(g.name)}</div>
+            <div class="contact-status">${g.memberCount||'?'}人</div>
+          </div>
+        </div>`;
+    });
   }
 }
+
+// 点击新的朋友
+document.addEventListener('click', (e) => {
+  const frBtn = document.getElementById('newFriendsBtn');
+  if (frBtn && (frBtn === e.target || frBtn.contains(e.target))) {
+    showFriendRequests();
+  }
+});
+
+function showFriendRequests() {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('friendRequestPage').classList.add('active');
+  renderFriendRequests();
+}
+
+document.getElementById('frBackBtn').addEventListener('click', () => {
+  document.getElementById('friendRequestPage').classList.remove('active');
+  document.querySelector('[data-tab="contacts"]')?.click();
+});
+
+function renderFriendRequests() {
+  const el = document.getElementById('friendRequestList');
+  const all = pendingReqs || [];
+  const pending = all.filter(r => r.status === 'pending');
+  const history = all.filter(r => r.status !== 'pending');
+
+  let html = '<p style="font-size:.82rem;color:#888;margin-bottom:.5rem">搜索用户添加好友</p>';
+  html += `<div style="display:flex;gap:.3rem;margin-bottom:.8rem">
+    <input type="text" id="frSearchInput" placeholder="输入手机号搜索..." style="flex:1;padding:.4rem .6rem;border-radius:6px;border:1px solid #444;background:#3a3a3a;color:#ddd;font-size:.8rem;outline:none">
+    <button id="frSearchBtn" style="padding:.4rem .7rem;border:none;border-radius:6px;background:var(--green);color:#fff;font-size:.78rem;cursor:pointer">搜索</button>
+  </div>
+  <div id="frSearchResult" style="margin-bottom:.5rem"></div>`;
+
+  if (pending.length > 0) {
+    html += `<div style="font-size:.78rem;color:#888;margin:.3rem 0">待处理 (${pending.length})</div>`;
+    pending.forEach(r => {
+      const u = r.fromUser || { name: r.from, avatarChar: '?', avatarColor: '#666' };
+      html += `
+        <div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.04)">
+          <div class="avatar" style="width:34px;height:34px;background:${u.avatarColor||'#666'};font-size:.7rem">${u.avatarChar||'?'}</div>
+          <div style="flex:1"><div style="font-size:.82rem">${escapeHtml(u.name||r.from)}</div><div style="font-size:.7rem;color:#888">${escapeHtml(r.remark||'')}</div></div>
+          <button class="add-btn" onclick="acceptFriend('${r.from}')" style="padding:.2rem .5rem;border:none;border-radius:6px;background:var(--green);color:#fff;font-size:.72rem;cursor:pointer">同意</button>
+          <button class="add-btn" onclick="rejectFriend('${r.from}')" style="padding:.2rem .5rem;border:none;border-radius:6px;background:#888;color:#fff;font-size:.72rem;cursor:pointer">拒绝</button>
+        </div>`;
+    });
+  } else {
+    html += `<div style="text-align:center;padding:.8rem;color:#888;font-size:.78rem">暂无好友申请</div>`;
+  }
+
+  if (history.length > 0) {
+    html += `<div style="font-size:.78rem;color:#888;margin:.5rem 0 .3rem">历史记录</div>`;
+    history.forEach(r => {
+      const u = r.fromUser || { name: r.from, avatarChar: '?', avatarColor: '#666' };
+      const statusLabel = r.status === 'accepted' ? '已添加' : '已拒绝';
+      html += `
+        <div style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;opacity:.6">
+          <div class="avatar" style="width:30px;height:30px;background:${u.avatarColor||'#666'};font-size:.65rem">${u.avatarChar||'?'}</div>
+          <div style="flex:1"><div style="font-size:.78rem">${escapeHtml(u.name||r.from)}</div></div>
+          <span style="font-size:.7rem;color:#888">${statusLabel}</span>
+        </div>`;
+    });
+  }
+
+  el.innerHTML = html;
+
+  // 搜索
+  document.getElementById('frSearchBtn')?.addEventListener('click', () => {
+    const q = document.getElementById('frSearchInput').value.trim();
+    if (!q) return;
+    socket.emit('search-users', q, (users) => {
+      const resultEl = document.getElementById('frSearchResult');
+      if (!users || users.length === 0) { resultEl.innerHTML = '<p style="font-size:.75rem;color:#888;padding:.3rem 0">未找到用户</p>'; return; }
+      resultEl.innerHTML = users.map(u => {
+        const isFriend = myFriends.some(f => f.id === u.id);
+        return `
+          <div style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0">
+            <div class="avatar" style="width:32px;height:32px;background:${u.avatarColor||'#666'};font-size:.7rem">${u.avatarChar||'?'}</div>
+            <div style="flex:1;font-size:.8rem">${escapeHtml(u.name)}</div>
+            ${isFriend ? '<span style="font-size:.7rem;color:#888">已是好友</span>' : `<button class="add-btn" onclick="sendFriendReq('${u.id}')" style="padding:.2rem .5rem;border:none;border-radius:6px;background:var(--green);color:#fff;font-size:.72rem;cursor:pointer">添加</button>`}
+          </div>`;
+      }).join('');
+    });
+  });
+}
+
+function sendFriendReq(userId) {
+  socket.emit('send-friend-request', { to: userId, remark: '' }, (res) => {
+    if (res.success) showToast('已发送好友请求');
+    else showToast(res.error || '发送失败');
+  });
+}
+window.sendFriendReq = sendFriendReq;
+
+function acceptFriend(from) {
+  socket.emit('accept-friend-request', { from }, (res) => {
+    if (res.success) { showToast('已添加好友'); loadFriends(); }
+    else showToast(res.error || '操作失败');
+  });
+}
+window.acceptFriend = acceptFriend;
+
+function rejectFriend(from) {
+  socket.emit('reject-friend-request', { from }, (res) => {
+    if (res.success) { showToast('已拒绝'); loadFriends(); }
+    else showToast(res.error || '操作失败');
+  });
+}
+window.rejectFriend = rejectFriend;
 
 // ═══════════════════════════════════════════════════════════════
 // 打开聊天
@@ -1197,6 +1353,43 @@ mobileBack.addEventListener('click', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// 聊天操作
+// ═══════════════════════════════════════════════════════════════
+let _chatSettingsCache = null;
+function getLocalChatSettings(chatId) {
+  return _chatSettingsCache?.get(chatId) || {};
+}
+function togglePin(userId) {
+  const chatId = userId.startsWith('g_') ? userId : getChatId(currentUser.id, userId);
+  socket.emit('toggle-chat-pin', { chatId }, (res) => { if (res.success) { showToast(res.pinned ? '已置顶' : '已取消置顶'); renderChatList(); } });
+}
+window.togglePin = togglePin;
+function toggleMute(userId) {
+  const chatId = userId.startsWith('g_') ? userId : getChatId(currentUser.id, userId);
+  socket.emit('toggle-chat-mute', { chatId }, (res) => { if (res.success) { showToast(res.muted ? '已开启免打扰' : '已关闭免打扰'); renderChatList(); } });
+}
+window.toggleMute = toggleMute;
+function deleteChat(userId) {
+  if (!confirm('确定删除此聊天？')) return;
+  const chatId = userId.startsWith('g_') ? userId : getChatId(currentUser.id, userId);
+  socket.emit('delete-chat', { chatId }, (res) => {
+    if (res.success) { messageCache.delete(chatId); if (activeChat === userId) { activeChat = null; chatWindow.style.display = 'none'; emptyState.style.display = 'flex'; } renderChatList(); showToast('已删除'); }
+  });
+}
+window.deleteChat = deleteChat;
+
+// ═══════════════════════════════════════════════════════════════
+// 签到
+// ═══════════════════════════════════════════════════════════════
+function doCheckIn() {
+  socket.emit('check-in', (res) => {
+    if (res.success) { showToast(`签到成功 +${res.points}积分（连续${res.streak}天）`); currentUser.points = res.total; updateProfileUI(); }
+    else showToast(res.error || '签到失败');
+  });
+}
+window.doCheckIn = doCheckIn;
+
+// ═══════════════════════════════════════════════════════════════
 // 个人资料 UI
 // ═══════════════════════════════════════════════════════════════
 function updateProfileUI() {
@@ -1262,6 +1455,8 @@ function updateProfileUI() {
   }
 
   ppBalance.textContent = `¥${(u.balance || 0).toFixed(2)}`;
+  document.getElementById('ppGender').textContent = u.gender === 'male' ? '男' : u.gender === 'female' ? '女' : '未设置';
+  document.getElementById('ppPoints').textContent = `${u.points || 0} 分`;
 }
 
 // ═══════════════════════════════════════════════════════════════

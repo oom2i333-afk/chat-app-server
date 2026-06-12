@@ -261,6 +261,8 @@ body {
   min-width:18px; height:18px; padding:0 5px; border-radius:9px;
   margin-top:4px;
 }
+.chat-action-btn { font-size:.7rem; cursor:pointer; opacity:.4; transition:opacity .15s; padding:1px 2px; line-height:1; }
+.chat-action-btn:hover { opacity:1; }
 
 /* ─── 联系人 ────────────────────────────────────────────── */
 .contact-item .contact-name { font-size:.88rem; font-weight:500; display:flex; align-items:center; gap:.3rem; }
