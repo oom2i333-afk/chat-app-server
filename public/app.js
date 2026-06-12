@@ -1218,7 +1218,7 @@ function renderMessageHtml(m, chatPartner, isGroup) {
     const elapsed = Date.now() - m.time;
     const canReEdit = isMine && elapsed <= 60000; // 1分钟内可重新编辑
     return `
-      <div class="message-row recalled">
+      <div class="message-row recalled" data-msg-id="${m.id}" data-chat-id="${getChatId(currentUser.id, activeChat)}">
         <div class="message-body" style="max-width:100%">
           <div class="message-bubble">${recallText}</div>
           <div style="display:flex;align-items:center;gap:.5rem;justify-content:center;margin-top:2px">
@@ -1236,7 +1236,7 @@ function renderMessageHtml(m, chatPartner, isGroup) {
       ? `已领取`
       : (isMine ? (m.status === 'delivered' || m.status === 'read' ? '等待领取' : '已发送') : '点击领取');
     return `
-      <div class="message-row ${isMine ? 'mine' : 'other'}">
+      <div class="message-row ${isMine ? 'mine' : 'other'}" data-msg-id="${m.id}" data-chat-id="${getChatId(currentUser.id, activeChat)}">
         <div class="message-avatar" style="background:${avatarBg}">${avatarHtml}</div>
         <div class="message-body">
           <div class="rp-bubble" data-msg-id="${m.id}">
@@ -1258,7 +1258,7 @@ function renderMessageHtml(m, chatPartner, isGroup) {
   // 普通文本消息
   const statusIcon = isMine ? getStatusSvg(m.status) : '';
   return `
-    <div class="message-row ${isMine ? 'mine' : 'other'}">
+    <div class="message-row ${isMine ? 'mine' : 'other'}" data-msg-id="${m.id}" data-chat-id="${getChatId(currentUser.id, activeChat)}">
       <div class="message-avatar" style="background:${avatarBg}">${avatarHtml}</div>
       <div class="message-body">
         ${senderName ? `<div style="font-size:.7rem;color:#888;margin-bottom:1px;padding-left:2px">${escapeHtml(senderName)}</div>` : ''}
@@ -1332,6 +1332,106 @@ function updateSendBtn() {
   sendBtn.disabled = !messageInput.value.trim();
 }
 
+// ─── 右键菜单 / 回复 / 转发 / 收藏 ──────────────────────
+let ctxMsgId = null, ctxMsgChatId = null, replyToMsg = null;
+document.addEventListener('contextmenu', (e) => {
+  const bubble = e.target.closest('.message-bubble, .rp-bubble');
+  if (!bubble) { document.getElementById('contextMenu').style.display = 'none'; return; }
+  e.preventDefault();
+  const row = bubble.closest('.message-row');
+  ctxMsgId = row?.dataset?.msgId; ctxMsgChatId = row?.dataset?.chatId;
+  if (!ctxMsgId) return;
+  const menu = document.getElementById('contextMenu');
+  menu.style.left = Math.min(e.clientX, window.innerWidth - 140) + 'px';
+  menu.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px';
+  menu.style.display = 'block';
+  document.getElementById('ctxDelete').style.display = row?.classList.contains('mine') ? 'block' : 'none';
+});
+document.addEventListener('click', () => document.getElementById('contextMenu').style.display = 'none');
+
+document.getElementById('ctxReply').onclick = () => {
+  const msgs = messageCache.get(ctxMsgChatId)||[]; const msg = msgs.find(m=>m.id===ctxMsgId);
+  if (msg) { replyToMsg = msg; showQuoteBar(msg); }
+};
+document.getElementById('ctxForward').onclick = () => {
+  document.getElementById('forwardModal').style.display = 'flex';
+  renderForwardList(myFriends); document.getElementById('fwSearch').value=''; document.getElementById('fwSearch').focus();
+};
+document.getElementById('ctxFavorite').onclick = () => {
+  socket.emit('favorite-message', { messageId: ctxMsgId, chatId: ctxMsgChatId }, (r) => showToast(r.success?'已收藏':(r.error||'失败')));
+};
+document.getElementById('ctxCopy').onclick = () => {
+  const msgs = messageCache.get(ctxMsgChatId)||[]; const msg = msgs.find(m=>m.id===ctxMsgId);
+  if (msg?.text) navigator.clipboard.writeText(msg.text).then(()=>showToast('已复制'));
+};
+document.getElementById('ctxDelete').onclick = () => {
+  if (!confirm('删除此消息？')) return;
+  const msgs = messageCache.get(ctxMsgChatId); if (!msgs) return;
+  const idx = msgs.findIndex(m=>m.id===ctxMsgId); if(idx>-1) msgs.splice(idx,1); renderMessages();
+};
+
+function showQuoteBar(msg) {
+  document.getElementById('quoteBar')?.remove();
+  const bar = document.createElement('div'); bar.id='quoteBar';
+  bar.style.cssText='display:flex;align-items:center;padding:.3rem .6rem;background:#e8f5e9;border-left:3px solid var(--green);font-size:.78rem;color:#555;gap:.5rem;flex-shrink:0';
+  bar.innerHTML=`<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">回复：${escapeHtml((msg.text||'').slice(0,40))}</span><span id="cancelReply" style="cursor:pointer;font-size:1rem;opacity:.5">✕</span>`;
+  document.querySelector('.input-area').before(bar);
+  document.getElementById('cancelReply').onclick=()=>{bar.remove();replyToMsg=null;};
+}
+// 重写 sendMessage 支持回复
+sendMessage = function() {
+  const text = messageInput.value.trim();
+  if (!text || !activeChat) return;
+  const replyText = replyToMsg ? `「${(replyToMsg.text||'').slice(0,20)}」\n` : '';
+  socket.emit('send-message', { to: activeChat, text: replyText + text }, (msg) => {
+    const chatId = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
+    if (!messageCache.has(chatId)) messageCache.set(chatId, []);
+    messageCache.get(chatId).push(msg); renderMessages(); scrollToBottom(); renderChatList();
+  });
+  messageInput.value = ''; emojiPanel.style.display = 'none'; updateSendBtn();
+  document.getElementById('quoteBar')?.remove(); replyToMsg = null;
+};
+
+document.getElementById('fwModalOverlay').onclick=document.getElementById('fwModalClose').onclick=()=>document.getElementById('forwardModal').style.display='none';
+document.getElementById('fwSearch').addEventListener('input',()=>{
+  const q=document.getElementById('fwSearch').value.trim().toLowerCase();
+  renderForwardList(myFriends.filter(f=>f.name.toLowerCase().includes(q)));
+});
+function renderForwardList(list) {
+  const el=document.getElementById('fwContactList');
+  if(!list.length){el.innerHTML='<p style="text-align:center;padding:.5rem;color:#888;font-size:.78rem">无好友</p>';return;}
+  el.innerHTML=list.map(f=>{
+    const aHtml=f.avatar?`<img src="${f.avatar}">`:(f.avatarChar||'?');const aBg=f.avatar?'':(f.avatarColor||'#666');
+    return `<div class="search-result-item" onclick="doForward('${f.id}')"><div class="avatar" style="width:34px;height:34px;background:${aBg};font-size:.7rem">${aHtml}</div><span style="font-size:.82rem">${escapeHtml(f.name)}</span></div>`;
+  }).join('');
+}
+function doForward(toId) {
+  if(!ctxMsgId)return;
+  socket.emit('forward-message',{messageId:ctxMsgId,toUserId:toId},(r)=>{if(r.success){showToast('已转发');document.getElementById('forwardModal').style.display='none';}else showToast(r.error||'失败');});
+}
+window.doForward=doForward;
+
+function loadFavorites() {
+  socket.emit('get-favorites',(list)=>{
+    const el=document.getElementById('favoritesList');
+    if(!list||!list.length){el.innerHTML='<p style="text-align:center;padding:1rem;color:#888;font-size:.78rem">暂无收藏</p>';return;}
+    el.innerHTML=list.map(f=>`<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.04)"><span style="flex:1;font-size:.8rem;color:#ddd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(f.text||'')}</span><span style="font-size:.65rem;color:#888">${formatTime(f.time)}</span><span style="font-size:.7rem;cursor:pointer;opacity:.5" onclick="deleteFav(\'${f.id}\')">✕</span></div>`).join('');
+  });
+}
+function deleteFav(id){socket.emit('delete-favorite',{id},()=>loadFavorites());}
+window.deleteFav=deleteFav;
+document.getElementById('favBackBtn').onclick=()=>{document.getElementById('favoritesPage').classList.remove('active');document.querySelector('[data-tab="profile"]')?.click();};
+
+// ─── 修改密码 ─────────────────────────────────────────────
+document.getElementById('cpModalOverlay').onclick=document.getElementById('cpModalClose').onclick=()=>document.getElementById('changePwdModal').style.display='none';
+document.getElementById('cpSaveBtn').addEventListener('click',()=>{
+  const o=document.getElementById('cpOldPwd').value,n=document.getElementById('cpNewPwd').value,c=document.getElementById('cpConfirmPwd').value,err=document.getElementById('cpError');
+  if(!o){err.textContent='请输入原密码';return;}
+  if(!n||n.length<6||n.length>12){err.textContent='新密码需6-12位';return;}
+  if(n!==c){err.textContent='两次密码不一致';return;}err.textContent='';
+  socket.emit('change-password',{oldPassword:o,newPassword:n},(r)=>{if(r.success){showToast('密码已修改');document.getElementById('changePwdModal').style.display='none';document.getElementById('cpOldPwd').value='';document.getElementById('cpNewPwd').value='';document.getElementById('cpConfirmPwd').value='';}else err.textContent=r.error||'修改失败';});
+});
+
 // ═══════════════════════════════════════════════════════════════
 // 打字状态
 // ═══════════════════════════════════════════════════════════════
@@ -1388,6 +1488,15 @@ function doCheckIn() {
   });
 }
 window.doCheckIn = doCheckIn;
+
+document.getElementById('ppFavRow')?.addEventListener('click', () => {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('favoritesPage').classList.add('active'); loadFavorites();
+});
+document.getElementById('ppPwdRow')?.addEventListener('click', () => {
+  document.getElementById('changePwdModal').style.display = 'flex';
+  document.getElementById('cpOldPwd').value=''; document.getElementById('cpNewPwd').value=''; document.getElementById('cpConfirmPwd').value=''; document.getElementById('cpError').textContent='';
+});
 
 // ═══════════════════════════════════════════════════════════════
 // 个人资料 UI

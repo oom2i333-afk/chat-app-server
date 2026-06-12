@@ -621,6 +621,60 @@ io.on('connection', (socket) => {
     callback({ hasSensitive: !!hit, word: hit });
   });
 
+  // ─── 收藏 ──────────────────────────────────────────────
+  const favorites = new Map();
+  socket.on('favorite-message', ({ messageId, chatId }, callback) => {
+    const uid = socket.userId; const msgs = messages.get(chatId); const msg = msgs?.find(m => m.id === messageId);
+    if (!msg) return callback?.({ success: false, error: '消息不存在' });
+    if (!favorites.has(uid)) favorites.set(uid, []);
+    if (favorites.get(uid).some(f => f.messageId === messageId)) return callback?.({ success: false, error: '已收藏' });
+    favorites.get(uid).unshift({ id: `fav_${Date.now()}`, messageId, chatId, text: msg.text || '[消息]', from: msg.from, time: Date.now(), type: msg.type });
+    callback?.({ success: true });
+  });
+  socket.on('get-favorites', (callback) => { callback(favorites.get(socket.userId) || []); });
+  socket.on('delete-favorite', ({ id }, callback) => {
+    const favs = favorites.get(socket.userId); if (!favs) return;
+    const idx = favs.findIndex(f => f.id === id); if (idx > -1) favs.splice(idx, 1);
+    callback?.({ success: true });
+  });
+
+  // ─── 转发消息 ──────────────────────────────────────────
+  socket.on('forward-message', ({ messageId, toUserId }, callback) => {
+    const from = socket.userId; let originalMsg = null;
+    for (const [, msgs] of messages) { const m = msgs.find(m => m.id === messageId); if (m) { originalMsg = m; break; } }
+    if (!originalMsg) return callback?.({ success: false, error: '消息不存在' });
+    const targetChat = getChatId(from, toUserId);
+    const newMsg = { id: genMsgId(), from, to: targetChat, type: 'text', text: originalMsg.text, time: Date.now(), status: 'sent', readAt: null };
+    if (!messages.has(targetChat)) messages.set(targetChat, []);
+    messages.get(targetChat).push(newMsg);
+    const target = users.get(toUserId);
+    if (target?.online) { newMsg.status = 'delivered'; io.to(toUserId).emit('new-message', newMsg); }
+    callback?.({ success: true });
+  });
+
+  // ─── 修改密码 ──────────────────────────────────────────
+  socket.on('change-password', ({ oldPassword, newPassword }, callback) => {
+    const user = users.get(socket.userId);
+    if (!user) return callback?.({ success: false, error: '未登录' });
+    if (hashPassword(oldPassword) !== user.password) return callback?.({ success: false, error: '原密码错误' });
+    if (!newPassword || newPassword.length < 6 || newPassword.length > 12) return callback?.({ success: false, error: '新密码需6-12位' });
+    user.password = hashPassword(newPassword);
+    callback?.({ success: true });
+  });
+
+  // ─── 搜索消息 ──────────────────────────────────────────
+  socket.on('search-messages', ({ keyword, chatId }, callback) => {
+    const uid = socket.userId; const results = [];
+    const chats = chatId ? [chatId] : [...messages.keys()].filter(k => k.includes(uid) || k.startsWith('g_'));
+    for (const cid of chats) {
+      for (const m of (messages.get(cid) || [])) {
+        if (m.text && m.text.toLowerCase().includes(keyword.toLowerCase()) && (m.from === uid || m.to === uid || cid.startsWith('g_')))
+          results.push({ ...m, chatId: cid });
+      }
+    }
+    callback(results.slice(-30));
+  });
+
   // ─── 实名认证 ──────────────────────────────────────────
   socket.on('verify-realname', ({ userId, realName, idCard }, callback) => {
     const user = users.get(userId);

@@ -166,6 +166,14 @@
             <span class="pp-label">积分</span>
             <span class="pp-value" id="ppPoints">0</span>
           </div>
+          <div class="pp-row" id="ppFavRow" style="cursor:pointer">
+            <span class="pp-label">⭐ 我的收藏</span>
+            <span class="pp-value"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#999" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+          </div>
+          <div class="pp-row" id="ppPwdRow" style="cursor:pointer">
+            <span class="pp-label">🔑 修改密码</span>
+            <span class="pp-value"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#999" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+          </div>
           <div class="pp-row">
             <span class="pp-label">红包余额</span>
             <span class="pp-value" id="ppBalance">¥0.00</span>
@@ -191,6 +199,17 @@
         <span style="font-size:.9rem;font-weight:600;color:#ddd">新的朋友</span>
       </div>
       <div id="friendRequestList"></div>
+    </div>
+  </div>
+
+  <!-- 收藏页 -->
+  <div id="favoritesPage" class="tab-content scrollable">
+    <div style="padding:.5rem .8rem">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
+        <button id="favBackBtn" style="background:none;border:none;color:#aaa;font-size:1.1rem;cursor:pointer">←</button>
+        <span style="font-size:.9rem;font-weight:600;color:#ddd">我的收藏</span>
+      </div>
+      <div id="favoritesList"></div>
     </div>
   </div>
 
@@ -426,6 +445,42 @@
       </div>
       <div class="gi-actions" id="giActions"></div>
       <div class="gi-members" id="giMembers"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 右键菜单 -->
+<div id="contextMenu" class="ctx-menu" style="display:none">
+  <div class="ctx-item" id="ctxReply">💬 回复</div>
+  <div class="ctx-item" id="ctxForward">📤 转发</div>
+  <div class="ctx-item" id="ctxFavorite">⭐ 收藏</div>
+  <div class="ctx-item" id="ctxCopy">📋 复制</div>
+  <div class="ctx-item" id="ctxDelete">🗑 删除</div>
+</div>
+
+<!-- 转发弹窗 -->
+<div id="forwardModal" class="modal" style="display:none">
+  <div class="modal-overlay" id="fwModalOverlay"></div>
+  <div class="modal-content" style="max-width:340px">
+    <div class="modal-header"><h3>转发消息</h3><button class="modal-close" id="fwModalClose">✕</button></div>
+    <div class="modal-body">
+      <div class="input-group"><input type="text" id="fwSearch" placeholder="搜索好友..." autocomplete="off"></div>
+      <div id="fwContactList" style="max-height:260px;overflow-y:auto;margin-top:.3rem"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 修改密码弹窗 -->
+<div id="changePwdModal" class="modal" style="display:none">
+  <div class="modal-overlay" id="cpModalOverlay"></div>
+  <div class="modal-content" style="max-width:340px">
+    <div class="modal-header"><h3>修改密码</h3><button class="modal-close" id="cpModalClose">✕</button></div>
+    <div class="modal-body">
+      <div class="input-group"><input type="password" id="cpOldPwd" placeholder="原密码" maxlength="12"></div>
+      <div class="input-group" style="margin-top:.5rem"><input type="password" id="cpNewPwd" placeholder="新密码（6-12位）" maxlength="12"></div>
+      <div class="input-group" style="margin-top:.5rem"><input type="password" id="cpConfirmPwd" placeholder="确认新密码" maxlength="12"></div>
+      <div id="cpError" class="form-error"></div>
+      <button id="cpSaveBtn" class="btn-primary" style="margin-top:.5rem">保存</button>
     </div>
   </div>
 </div>
