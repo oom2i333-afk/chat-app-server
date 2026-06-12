@@ -2,91 +2,202 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Chat - 聊天</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>WeTalk - 畅聊</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- ─── 登录页 ─── -->
+<!-- ============================================================ -->
+<!-- 登录页 -->
+<!-- ============================================================ -->
 <div id="loginPage" class="page active">
-  <div class="login-bg"></div>
+  <div class="login-bg">
+    <div class="login-bg-pattern"></div>
+  </div>
   <div class="login-card">
     <div class="login-logo">
-      <div class="logo-icon">💬</div>
-      <h1>Chat</h1>
-      <p>轻量聊天 · 随时随地</p>
+      <div class="logo-icon">
+        <svg viewBox="0 0 60 60" width="60" height="60">
+          <rect x="2" y="2" width="56" height="56" rx="14" fill="#fff"/>
+          <path d="M20 22c0-4.4 4.5-8 10-8s10 3.6 10 8c0 4.4-4.5 8-10 8s-10-3.6-10-8z" fill="#06b025"/>
+          <path d="M16 34c0-5.5 6.3-10 14-10s14 4.5 14 10v4H16v-4z" fill="#06b025"/>
+          <circle cx="28" cy="19" r="2.5" fill="#fff" opacity=".8"/>
+          <circle cx="34" cy="19" r="2.5" fill="#fff" opacity=".8"/>
+          <line x1="40" y1="13" x2="44" y2="9" stroke="#06b025" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h1>WeTalk</h1>
+      <p class="login-subtitle">手机验证 · 安全畅聊</p>
     </div>
+
     <div class="login-form">
-      <div class="input-group">
-        <input type="text" id="loginName" placeholder="输入你的昵称" maxlength="12" autofocus>
+      <div class="input-group phone-group">
+        <span class="phone-prefix">+86</span>
+        <input type="tel" id="phoneInput" placeholder="请输入手机号" maxlength="11" autofocus>
+      </div>
+      <div class="input-group code-group">
+        <input type="text" id="codeInput" placeholder="请输入验证码" maxlength="6" inputmode="numeric">
+        <button id="sendCodeBtn" class="code-btn">获取验证码</button>
       </div>
       <button id="loginBtn" class="btn-primary">登 录</button>
-      <p class="login-tip">登录即表示同意《服务条款》</p>
+      <p class="login-tip">登录即表示同意《服务条款》和《隐私政策》</p>
     </div>
   </div>
 </div>
 
-<!-- ─── 主界面 ─── -->
+<!-- ============================================================ -->
+<!-- 主界面 -->
+<!-- ============================================================ -->
 <div id="mainPage" class="page">
 
-  <!-- 左侧栏 -->
+  <!-- ═══ 侧边栏 ═══ -->
   <div id="sidebar" class="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-title">Chat</div>
-      <div class="header-actions">
-        <button class="icon-btn" id="addContactBtn" title="添加联系人">➕</button>
-        <button class="icon-btn" id="logoutBtn" title="退出">⏻</button>
+    <!-- 用户信息头 -->
+    <div class="sidebar-profile" id="sidebarProfile">
+      <div class="profile-avatar" id="profileAvatar">
+        <span id="profileAvatarChar">U</span>
+        <div class="profile-avatar-badge">
+          <svg viewBox="0 0 16 16" width="10" height="10"><circle cx="8" cy="8" r="7" fill="#fff"/><path d="M4 8l3 3 5-6" stroke="#1aad19" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="profile-info">
+        <div class="profile-name" id="profileName">用户昵称</div>
+        <div class="profile-status" id="profileStatus">在线</div>
+      </div>
+      <div class="profile-actions">
+        <button class="header-btn" id="createGroupBtn" title="创建群聊">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="9"/></svg>
+        </button>
+        <button class="header-btn" id="addContactBtn2" title="添加联系人">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><line x1="12" y1="15" x2="12" y2="18"/><line x1="10.5" y1="16.5" x2="13.5" y2="16.5"/></svg>
+        </button>
+        <button class="header-btn" id="logoutBtn" title="退出登录">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
       </div>
     </div>
 
+    <!-- 搜索 -->
     <div class="search-box">
-      <span class="search-icon">🔍</span>
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#888" stroke-width="2"><circle cx="10.5" cy="10.5" r="7.5"/><line x1="16" y1="16" x2="22" y2="22"/></svg>
       <input type="text" id="searchChat" placeholder="搜索聊天">
     </div>
 
-    <!-- Tab 切换 -->
+    <!-- Tab -->
     <div class="tabs">
-      <button class="tab active" data-tab="chats">💬 聊天</button>
-      <button class="tab" data-tab="contacts">👥 通讯录</button>
+      <button class="tab active" data-tab="chats">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        聊天
+      </button>
+      <button class="tab" data-tab="contacts">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        通讯录
+      </button>
+      <button class="tab" data-tab="profile">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        我的
+      </button>
     </div>
 
-    <!-- 聊天列表 -->
+    <!-- Tab 内容 -->
     <div id="chatList" class="tab-content active scrollable"></div>
-
-    <!-- 联系人列表 -->
     <div id="contactList" class="tab-content scrollable"></div>
+
+    <!-- 个人资料面板 -->
+    <div id="profilePanel" class="tab-content scrollable">
+      <div class="profile-panel">
+        <div class="pp-avatar-section" id="ppAvatarSection">
+          <div class="pp-avatar" id="ppAvatar">
+            <span id="ppAvatarChar">U</span>
+            <div class="pp-avatar-overlay">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+          </div>
+          <div class="pp-change-avatar" id="ppChangeAvatar">点击更换头像</div>
+          <input type="file" id="avatarInput" accept="image/*" hidden>
+        </div>
+
+        <div class="pp-section">
+          <div class="pp-row" id="ppEditName">
+            <span class="pp-label">昵称</span>
+            <div class="pp-value">
+              <span id="ppName">用户昵称</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#999" stroke-width="2"><polyline points="15 3 21 9 9 21H3v-6z"/></svg>
+            </div>
+          </div>
+          <div class="pp-row">
+            <span class="pp-label">手机号</span>
+            <span class="pp-value" id="ppPhone">138****0000</span>
+          </div>
+          <div class="pp-row" id="ppRealNameRow">
+            <span class="pp-label">实名认证</span>
+            <div class="pp-value" id="ppRealNameStatus">
+              <span class="realname-badge unverified">未认证</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#999" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+          </div>
+          <div class="pp-row">
+            <span class="pp-label">红包余额</span>
+            <span class="pp-value" id="ppBalance">¥0.00</span>
+          </div>
+        </div>
+
+        <button class="pp-logout" id="ppLogout">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          退出登录
+        </button>
+      </div>
+    </div>
   </div>
 
-  <!-- 右侧聊天区域 -->
+  <!-- ═══ 聊天区 ═══ -->
   <div class="chat-area">
-    <!-- 无聊天选择时的空状态 -->
+    <!-- 空状态 -->
     <div id="emptyState" class="empty-state">
-      <div class="empty-icon">💬</div>
-      <p>选择一个好友开始聊天</p>
+      <div class="empty-icon">
+        <svg viewBox="0 0 120 120" width="120" height="120">
+          <rect x="10" y="20" width="100" height="70" rx="12" fill="#e8f5e9" stroke="#c8e6c9" stroke-width="2"/>
+          <text x="30" y="55" font-size="28">💬</text>
+          <text x="28" y="78" font-size="22">💚</text>
+          <circle cx="80" cy="45" r="3" fill="#1aad19"/>
+          <circle cx="70" cy="45" r="2" fill="#1aad19"/>
+        </svg>
+      </div>
+      <p class="empty-title">选择一个好友开始聊天</p>
+      <p class="empty-desc">从左侧选择聊天，或点击 ➕ 添加好友</p>
     </div>
 
     <!-- 聊天窗口 -->
     <div id="chatWindow" class="chat-window" style="display:none">
       <div class="chat-header">
-        <button class="mobile-back" id="mobileBack">←</button>
+        <button class="mobile-back" id="mobileBack">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
         <div class="chat-header-avatar" id="chatAvatar">U</div>
         <div class="chat-header-info">
           <div class="chat-header-name" id="chatName">用户</div>
           <div class="chat-header-status" id="chatStatus">离线</div>
         </div>
+        <div class="chat-header-actions">
+          <button class="header-btn" id="chatMenuBtn" title="更多">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+          </button>
+        </div>
       </div>
 
-      <div class="messages-container" id="messagesContainer">
-        <!-- 消息会动态渲染到这里 -->
-      </div>
-
+      <div class="messages-container" id="messagesContainer"></div>
       <div class="typing-indicator" id="typingIndicator"></div>
 
       <div class="input-area">
-        <button class="emoji-btn" id="emojiBtn">😊</button>
+        <button class="input-action-btn" id="emojiBtn" title="表情">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+        </button>
+        <button class="input-action-btn" id="redpacketBtn" title="红包">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#e74c3c" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M2 10h20"/><path d="M12 4c-2 0-4 3-4 6s4 4 4 4 4-1 4-4-2-6-4-6z"/></svg>
+        </button>
         <div class="input-wrapper">
-          <input type="text" id="messageInput" placeholder="输入消息..." maxlength="500">
+          <input type="text" id="messageInput" placeholder="输入消息..." maxlength="1000" autocomplete="off">
         </div>
         <button class="send-btn" id="sendBtn">发送</button>
       </div>
@@ -94,12 +205,126 @@
   </div>
 </div>
 
-<!-- ─── Emoji 面板 ─── -->
+<!-- ============================================================ -->
+<!-- Emoji 面板 -->
+<!-- ============================================================ -->
 <div id="emojiPanel" class="emoji-panel" style="display:none">
+  <div class="emoji-categories">
+    <button class="emoji-cat active" data-cat="all">😃</button>
+    <button class="emoji-cat" data-cat="faces">😊</button>
+    <button class="emoji-cat" data-cat="hearts">❤️</button>
+    <button class="emoji-cat" data-cat="hands">👋</button>
+    <button class="emoji-cat" data-cat="animals">🐱</button>
+  </div>
   <div class="emoji-grid" id="emojiGrid"></div>
 </div>
 
-<!-- ─── 添加联系人模态框 ─── -->
+<!-- ============================================================ -->
+<!-- 发送红包弹窗 -->
+<!-- ============================================================ -->
+<div id="redpacketModal" class="modal" style="display:none">
+  <div class="modal-overlay" id="rpModalOverlay"></div>
+  <div class="rp-modal">
+    <div class="rp-header">
+      <div class="rp-close" id="rpClose">✕</div>
+      <div class="rp-title">发红包</div>
+      <div class="rp-icon">🧧</div>
+    </div>
+    <div class="rp-body">
+      <div class="rp-to" id="rpTo">发给：用户</div>
+      <div class="rp-amount-group">
+        <span class="rp-amount-sign">¥</span>
+        <input type="number" id="rpAmount" placeholder="0.00" step="0.01" min="0.01" max="200">
+      </div>
+      <div class="rp-amount-hint">单个红包金额上限 200 元</div>
+      <div class="rp-fast-amounts">
+        <button class="rp-fast" data-amt="1">¥1</button>
+        <button class="rp-fast" data-amt="5">¥5</button>
+        <button class="rp-fast" data-amt="10">¥10</button>
+        <button class="rp-fast" data-amt="20">¥20</button>
+        <button class="rp-fast" data-amt="66.66">¥66.66</button>
+        <button class="rp-fast" data-amt="88.88">¥88.88</button>
+      </div>
+      <div class="input-group" style="margin-top:.8rem">
+        <input type="text" id="rpBlessing" placeholder="添加祝福语（选填）" maxlength="30">
+      </div>
+      <button id="rpSendBtn" class="rp-send-btn">塞进红包</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 打开红包弹窗 -->
+<!-- ============================================================ -->
+<div id="openRpOverlay" class="rp-open-overlay" style="display:none">
+  <div class="rp-open-bg"></div>
+  <div class="rp-open-content">
+    <div class="rp-open-card" id="rpOpenCard">
+      <div class="rp-open-unopened" id="rpOpenUnopened">
+        <div class="rp-open-icon">🧧</div>
+        <div class="rp-open-sender" id="rpOpenSender">用户</div>
+        <div class="rp-open-blessing" id="rpOpenBlessing">恭喜发财，大吉大利</div>
+        <button class="rp-open-btn" id="rpOpenBtn">开</button>
+      </div>
+      <div class="rp-open-result" id="rpOpenResult" style="display:none">
+        <div class="rp-result-icon">🧧</div>
+        <div class="rp-result-label">恭喜发财</div>
+        <div class="rp-result-amount" id="rpResultAmount">¥0.00</div>
+        <div class="rp-result-from" id="rpResultFrom">来自 用户的红包</div>
+        <button class="rp-result-close" id="rpResultClose">知道了</button>
+      </div>
+    </div>
+    <div class="rp-open-close" id="rpOpenClose">✕</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 编辑昵称弹窗 -->
+<!-- ============================================================ -->
+<div id="nameEditModal" class="modal" style="display:none">
+  <div class="modal-overlay" id="nameModalOverlay"></div>
+  <div class="modal-content" style="max-width:340px">
+    <div class="modal-header">
+      <h3>修改昵称</h3>
+      <button class="modal-close" id="nameModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="input-group">
+        <input type="text" id="nameEditInput" placeholder="输入新昵称" maxlength="16">
+      </div>
+      <button id="nameSaveBtn" class="btn-primary" style="margin-top:.8rem">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 实名认证弹窗 -->
+<!-- ============================================================ -->
+<div id="realnameModal" class="modal" style="display:none">
+  <div class="modal-overlay" id="realnameOverlay"></div>
+  <div class="modal-content" style="max-width:340px">
+    <div class="modal-header">
+      <h3>实名认证</h3>
+      <button class="modal-close" id="realnameClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.82rem;color:#666;margin-bottom:1rem;line-height:1.5">
+        根据监管要求，使用红包功能需完成实名认证。您的信息仅用于身份验证。
+      </p>
+      <div class="input-group">
+        <input type="text" id="realnameInput" placeholder="请输入真实姓名" maxlength="20">
+      </div>
+      <div class="input-group" style="margin-top:.6rem">
+        <input type="text" id="idcardInput" placeholder="请输入身份证号" maxlength="18">
+      </div>
+      <button id="realnameSubmitBtn" class="btn-primary" style="margin-top:.8rem">提交认证</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 添加联系人弹窗 -->
+<!-- ============================================================ -->
 <div id="addContactModal" class="modal" style="display:none">
   <div class="modal-overlay" id="modalOverlay"></div>
   <div class="modal-content">
@@ -109,12 +334,63 @@
     </div>
     <div class="modal-body">
       <div class="input-group">
-        <input type="text" id="searchUserInput" placeholder="搜索用户名..." autocomplete="off">
+        <input type="text" id="searchUserInput" placeholder="搜索用户名或手机号..." autocomplete="off">
       </div>
       <div id="searchResults" class="search-results"></div>
     </div>
   </div>
 </div>
+
+<!-- ============================================================ -->
+<!-- 创建群聊弹窗 -->
+<!-- ============================================================ -->
+<div id="createGroupModal" class="modal" style="display:none">
+  <div class="modal-overlay" id="cgModalOverlay"></div>
+  <div class="modal-content" style="max-width:380px">
+    <div class="modal-header">
+      <h3>创建群聊</h3>
+      <button class="modal-close" id="cgModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="input-group">
+        <input type="text" id="cgNameInput" placeholder="输入群名称" maxlength="20">
+      </div>
+      <p style="font-size:.78rem;color:#888;margin:.4rem 0 .3rem">选择群成员（至少选1人）</p>
+      <div class="input-group">
+        <input type="text" id="cgSearchInput" placeholder="搜索联系人..." autocomplete="off">
+      </div>
+      <div id="cgContactList" class="cg-contact-list"></div>
+      <button id="cgCreateBtn" class="btn-primary" style="margin-top:.5rem">创建群聊</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 群信息弹窗 -->
+<!-- ============================================================ -->
+<div id="groupInfoModal" class="modal" style="display:none">
+  <div class="modal-overlay" id="giModalOverlay"></div>
+  <div class="modal-content" style="max-width:360px">
+    <div class="modal-header">
+      <h3>群聊信息</h3>
+      <button class="modal-close" id="giModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="text-align:center;padding:.5rem 0">
+        <div class="gi-avatar" id="giAvatar">群</div>
+        <div class="gi-name" id="giName">群名称</div>
+        <div class="gi-count" id="giCount">0 位成员</div>
+      </div>
+      <div class="gi-actions" id="giActions"></div>
+      <div class="gi-members" id="giMembers"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- Toast 提示 -->
+<!-- ============================================================ -->
+<div id="toastContainer" class="toast-container"></div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="app.js"></script>
