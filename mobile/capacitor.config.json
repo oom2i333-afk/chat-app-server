@@ -4,7 +4,7 @@
   "webDir": "src",
   "bundledWebRuntime": false,
   "server": {
-    "url": "https://chat-app-server.up.railway.app",
+    "url": "https://chat-app-server-production-a0da.up.railway.app",
     "cleartext": false,
     "allowNavigation": ["*"]
   },

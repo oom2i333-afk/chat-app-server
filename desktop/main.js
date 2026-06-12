@@ -4,7 +4,7 @@ const fs = require('fs');
 
 // ─── 配置 ───────────────────────────────────────────────
 // 部署到 Railway 后改成你的域名
-const SERVER_URL = process.env.CHAT_SERVER_URL || 'http://localhost:3000';
+const SERVER_URL = process.env.CHAT_SERVER_URL || 'https://chat-app-server-production-a0da.up.railway.app';
 const APP_NAME = 'Chat App';
 
 let mainWindow = null;
