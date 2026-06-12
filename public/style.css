@@ -660,29 +660,29 @@ body {
 /* ═══════════════════════════════════════════════════════════════
    Modal
    ═══════════════════════════════════════════════════════════════ */
-.modal { position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center; }
+.wt-modal { position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center; }
 .modal-overlay {
   position:absolute; inset:0; background:rgba(0,0,0,.4);
   animation:fadeIn .2s ease-out;
 }
-.modal-content {
+.wt-modal-content {
   position:relative; background:#fff; border-radius:var(--radius-lg); width:90%; max-width:380px;
   box-shadow:0 10px 40px rgba(0,0,0,.2); animation:slideUp .2s ease-out;
 }
 @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
 @keyframes fadeIn { from{opacity:0} to{opacity:1} }
 
-.modal-header {
+.wt-modal-header {
   display:flex; align-items:center; justify-content:space-between;
   padding:.9rem 1.1rem; border-bottom:1px solid #eee;
 }
-.modal-header h3 { font-size:.95rem; font-weight:600; }
+.wt-modal-header h3 { font-size:.95rem; font-weight:600; }
 .modal-close { background:none; border:none; font-size:1.1rem; cursor:pointer; color:#999; padding:.2rem; line-height:1; border-radius:6px; transition:background .2s; }
 .modal-close:hover { background:#f0f0f0; }
 
-.modal-body { padding:.8rem 1.1rem 1.1rem; }
-.modal-body .input-group { margin-bottom:0; }
-.modal-body .input-group input { padding:.6rem .75rem; font-size:.88rem; }
+.wt-modal-body { padding:.8rem 1.1rem 1.1rem; }
+.wt-modal-body .input-group { margin-bottom:0; }
+.wt-modal-body .input-group input { padding:.6rem .75rem; font-size:.88rem; }
 
 .search-results { margin-top:.6rem; display:flex; flex-direction:column; gap:.3rem; max-height:260px; overflow-y:auto; }
 .search-result-item {
@@ -732,12 +732,12 @@ body {
 /* ═══════════════════════════════════════════════════════════════
    Toast
    ═══════════════════════════════════════════════════════════════ */
-.toast-container {
+.wt-toast-container {
   position:fixed; top:60px; left:50%; transform:translateX(-50%);
   z-index:9999; display:flex; flex-direction:column; align-items:center;
   gap:.3rem; pointer-events:none;
 }
-.toast {
+.wt-toast {
   padding:.5rem 1.2rem; border-radius:20px;
   background:rgba(0,0,0,.75); color:#fff;
   font-size:.82rem; animation:toastIn .25s ease-out;

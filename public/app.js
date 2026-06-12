@@ -186,7 +186,7 @@ document.addEventListener('click', (e) => {
 // ═══════════════════════════════════════════════════════════════
 function showToast(msg, duration = 2000) {
   const el = document.createElement('div');
-  el.className = 'toast';
+  el.className = 'wt-toast';
   el.textContent = msg;
   toastContainer.appendChild(el);
   setTimeout(() => { el.remove(); }, duration);
@@ -541,15 +541,15 @@ socket.on('redpacket-opened', ({ packetId, openedBy, amount }) => {
 });
 
 socket.on('group-updated', (group) => {
-  if (contacts.has(group.id)) {
-    contacts.set(group.id, { ...contacts.get(group.id), name: group.name, avatarColor: group.avatarColor, avatarChar: group.avatarChar });
-  }
-  if (activeChat === group.id) {
-    const g = myGroups.find(g => g.id === group.id);
-    if (g) Object.assign(g, group);
-    updateChatHeader(group.id);
-  }
+  if (contacts.has(group.id)) contacts.set(group.id, { ...contacts.get(group.id), name: group.name, avatarColor: group.avatarColor, avatarChar: group.avatarChar });
+  if (activeChat === group.id) { const g = myGroups.find(g => g.id === group.id); if (g) Object.assign(g, group); updateChatHeader(group.id); }
   renderChatList();
+});
+
+socket.on('group-disbanded', ({ groupId }) => {
+  myGroups = myGroups.filter(g => g.id !== groupId); contacts.delete(groupId);
+  if (activeChat === groupId) { activeChat = null; chatWindow.style.display = 'none'; emptyState.style.display = 'flex'; }
+  renderChatList(); renderContactList(); showToast('群已解散');
 });
 
 socket.on('new-friend-request', ({ from }) => {
@@ -689,39 +689,56 @@ function openGroupInfo(groupId) {
     giName.textContent = `${g.name}（${g.memberCount}人）`;
     giCount.textContent = `${g.memberCount} 位成员`;
 
-    // 我的角色
     const me = g.members.find(m => m.userId === currentUser.id);
     const isOwner = me?.role === 'owner';
     const isAdmin = me?.role === 'admin';
-    giActions.innerHTML = '';
-    if (isOwner || isAdmin) {
-      const addBtn = document.createElement('button');
-      addBtn.className = 'gi-action-btn';
-      addBtn.textContent = '➕ 添加成员';
-      addBtn.onclick = () => { showToast('添加成员功能：在搜索中联系该群即可'); };
-      giActions.appendChild(addBtn);
-    }
+
+    // 群公告
+    let html = '<div style="margin:.5rem 0;padding:.5rem;background:rgba(255,255,255,.04);border-radius:8px;font-size:.78rem;color:#aaa">';
+    html += g.notice ? `📢 ${escapeHtml(g.notice)}` : '暂无群公告';
+    if (isOwner || isAdmin) html += `<br><span id="editNoticeBtn" style="color:var(--green);cursor:pointer;font-size:.72rem">编辑公告</span>`;
+    html += '</div>';
+    // 操作按钮
+    html += '<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.5rem">';
+    if (isOwner || isAdmin) html += '<button class="gi-action-btn" onclick="showToast(\'搜索群名称让好友加入\')">➕ 添加</button>';
+    if (isOwner) html += `<button class="gi-action-btn" onclick="doMuteAll('${g.id}')">🔇 全员禁言</button>`;
+    if (isOwner) html += `<button class="gi-action-btn" onclick="doTransferGroup('${g.id}')">🔄 转让群</button>`;
+    if (isOwner) html += `<button class="gi-action-btn" style="color:var(--danger)" onclick="doDisbandGroup('${g.id}')">🗑 解散群</button>`;
+    html += '</div>';
+    giActions.innerHTML = html;
+
+    document.getElementById('editNoticeBtn')?.addEventListener('click', () => {
+      const n = prompt('输入群公告：', g.notice || '');
+      if (n !== null) socket.emit('set-group-notice', { groupId: g.id, notice: n }, (r) => { if(r.success)openGroupInfo(g.id); });
+    });
 
     giMembers.innerHTML = (g.memberDetails || []).map(m => {
-      const roleLabel = m.role === 'owner' ? '群主' : (m.role === 'admin' ? '管理员' : '');
-      const canRemove = (isOwner && m.role !== 'owner') || (isAdmin && m.role === 'member');
-      const canSetAdmin = isOwner && m.role === 'member';
-      const name = m.user?.name || m.userId;
-      const avatarHtml = m.user?.avatar ? `<img src="${m.user.avatar}">` : (m.user?.avatarChar || '?');
-      const avatarBg = m.user?.avatar ? '' : (m.user?.avatarColor || '#666');
-      return `
-        <div class="gi-member">
-          <div class="avatar" style="background:${avatarBg}">${avatarHtml}</div>
-          <span class="gi-member-name">${escapeHtml(name)}</span>
-          <span class="gi-member-role">${roleLabel}</span>
-          ${canSetAdmin ? `<button class="gi-member-action" onclick="doSetRole('${g.id}','${m.userId}','admin')">设为管理</button>` : ''}
-          ${canRemove ? `<button class="gi-member-action" onclick="doRemoveMember('${g.id}','${m.userId}')">移除</button>` : ''}
-        </div>`;
+      const rl = m.role==='owner'?'👑群主':(m.role==='admin'?'管理员':'');
+      const cr = (isOwner&&m.role!=='owner')||(isAdmin&&m.role==='member');
+      const csa = isOwner&&m.role==='member';
+      const nm = m.user?.name||m.userId;
+      const ah = m.user?.avatar?`<img src="${m.user.avatar}">`:(m.user?.avatarChar||'?'); const ab = m.user?.avatar?'':(m.user?.avatarColor||'#666');
+      return `<div class="gi-member"><div class="avatar" style="background:${ab}">${ah}</div><span class="gi-member-name">${escapeHtml(nm)}</span><span class="gi-member-role">${rl}</span>${csa?`<button class="gi-member-action" onclick="doSetRole('${g.id}','${m.userId}','admin')">设为管理</button>`:''}${cr?`<button class="gi-member-action" onclick="doRemoveMember('${g.id}','${m.userId}')">移除</button>`:''}</div>`;
     }).join('');
     groupInfoModal.style.display = 'flex';
   });
 }
 window.openGroupInfo = openGroupInfo;
+
+function doMuteAll(gid){if(confirm('全员禁言？（仅群主可发言）'))socket.emit('group-mute-all',{groupId:gid,muted:true},r=>showToast(r.success?'已禁言':(r.error||'失败')));}
+window.doMuteAll=doMuteAll;
+function doTransferGroup(gid){
+  const n=prompt('输入新群主的用户ID/昵称：');if(!n)return;
+  socket.emit('get-group-info',gid,r=>{
+    if(!r.success)return;
+    const m=r.group.memberDetails?.find(m=>m.user?.name?.includes(n)||m.userId.includes(n));
+    if(!m){showToast('未找到该成员');return;}
+    if(confirm(`转让给 ${m.user?.name||m.userId}？`))socket.emit('transfer-group',{groupId:gid,toUserId:m.userId},r=>showToast(r.success?'已转让':(r.error||'失败')));
+  });
+}
+window.doTransferGroup=doTransferGroup;
+function doDisbandGroup(gid){if(confirm('确定解散此群？不可撤销！'))socket.emit('disband-group',{groupId:gid},r=>{if(r.success){showToast('群已解散');groupInfoModal.style.display='none';}else showToast(r.error||'失败');});}
+window.doDisbandGroup=doDisbandGroup;
 
 giModalOverlay.onclick = giModalClose.onclick = () => groupInfoModal.style.display = 'none';
 
@@ -1433,16 +1450,36 @@ document.getElementById('cpSaveBtn').addEventListener('click',()=>{
 });
 
 // ═══════════════════════════════════════════════════════════════
-// 打字状态
+// 打字状态 / @提醒
 // ═══════════════════════════════════════════════════════════════
+let atMenuDiv = null;
 messageInput.addEventListener('input', () => {
   if (!activeChat) return;
   socket.emit('typing', { to: activeChat });
   clearTimeout(typingTimeout);
-  typingTimeout = setTimeout(() => {
-    socket.emit('stop-typing', { to: activeChat });
-  }, 1500);
+  typingTimeout = setTimeout(() => { socket.emit('stop-typing', { to: activeChat }); }, 1500);
+
+  if (activeChat.startsWith('g_')) {
+    const val = messageInput.value; const ai = val.lastIndexOf('@');
+    if (ai >= 0 && (ai === 0 || val[ai-1] === ' ')) {
+      const q = val.slice(ai+1).toLowerCase();
+      if (!q.includes(' ') && !atMenuDiv) {
+        socket.emit('get-group-info', activeChat, (res) => {
+          if (!res.success) return;
+          atMenuDiv = document.createElement('div'); atMenuDiv.id = 'atMenu';
+          atMenuDiv.style.cssText = 'position:absolute;bottom:100%;left:0;background:#2e2e2e;border-radius:8px;padding:.3rem;max-height:150px;overflow-y:auto;z-index:50;min-width:120px;box-shadow:0 4px 20px rgba(0,0,0,.3)';
+          atMenuDiv.innerHTML = (res.group.memberDetails||[]).filter(m=>(m.user?.name||'').toLowerCase().includes(q)).map(m=>`<div class="at-item" style="padding:.25rem .5rem;font-size:.8rem;color:#ddd;cursor:pointer;border-radius:4px" onclick="selectAt('${escapeHtml(m.user?.name||m.userId)}')">@${escapeHtml(m.user?.name||m.userId)}</div>`).join('');
+          document.querySelector('.input-area')?.appendChild(atMenuDiv);
+        });
+      } else if (q.includes(' ')) { atMenuDiv?.remove(); atMenuDiv = null; }
+    } else { atMenuDiv?.remove(); atMenuDiv = null; }
+  }
 });
+function selectAt(n) {
+  const val = messageInput.value; const idx = val.lastIndexOf('@');
+  messageInput.value = val.slice(0, idx) + `@${n} `; atMenuDiv?.remove(); atMenuDiv = null; messageInput.focus();
+}
+window.selectAt = selectAt;
 
 // ═══════════════════════════════════════════════════════════════
 // 手机返回

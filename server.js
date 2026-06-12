@@ -614,6 +614,36 @@ io.on('connection', (socket) => {
     io.emit('user-updated', sanitizeUser(user));
   });
 
+  // ─── 群管理 ──────────────────────────────────────────
+  socket.on('set-group-notice', ({ groupId, notice }, callback) => {
+    const g = groups.get(groupId); if (!g) return callback?.({ success: false });
+    const me = g.members.find(m => m.userId === socket.userId);
+    if (!me || (me.role !== 'owner' && me.role !== 'admin')) return callback?.({ success: false, error: '无权限' });
+    g.notice = (notice || '').slice(0, 200);
+    const s = sanitizeGroup(g); io.to(groupId).emit('group-updated', s);
+    callback?.({ success: true, group: s });
+  });
+  socket.on('group-mute-all', ({ groupId, muted }, callback) => {
+    const g = groups.get(groupId); if (!g) return callback?.({ success: false });
+    if (g.members.find(m=>m.userId===socket.userId)?.role!=='owner') return callback?.({ success: false, error: '仅群主可操作' });
+    g.muted = !!muted; const s = sanitizeGroup(g); io.to(groupId).emit('group-updated', s);
+    callback?.({ success: true, muted: g.muted });
+  });
+  socket.on('transfer-group', ({ groupId, toUserId }, callback) => {
+    const g = groups.get(groupId); if (!g) return callback?.({ success: false, error: '群组不存在' });
+    if (g.members.find(m=>m.userId===socket.userId)?.role!=='owner') return callback?.({ success: false, error: '仅群主可操作' });
+    const t = g.members.find(m=>m.userId===toUserId); if(!t) return callback?.({ success: false, error: '用户不在群中' });
+    const o = g.members.find(m=>m.role==='owner'); if(o) o.role='member'; t.role='owner';
+    const s = sanitizeGroup(g); io.to(groupId).emit('group-updated', s);
+    callback?.({ success: true, group: s });
+  });
+  socket.on('disband-group', ({ groupId }, callback) => {
+    const g = groups.get(groupId); if (!g) return callback?.({ success: false, error: '群组不存在' });
+    if (g.members.find(m=>m.userId===socket.userId)?.role!=='owner') return callback?.({ success: false, error: '仅群主可操作' });
+    io.to(groupId).emit('group-disbanded', { groupId });
+    groups.delete(groupId); callback?.({ success: true });
+  });
+
   // ─── 检测敏感词 ──────────────────────────────────────────
   socket.on('check-sensitive', ({ text }, callback) => {
     let hit = '';

@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>WeTalk - 畅聊</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -88,20 +90,20 @@
       </div>
       <div class="profile-actions">
         <button class="header-btn" id="createGroupBtn" title="创建群聊">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="9"/></svg>
+        <i class="bi bi-plus-circle"></i>
         </button>
         <button class="header-btn" id="addContactBtn2" title="添加联系人">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><line x1="12" y1="15" x2="12" y2="18"/><line x1="10.5" y1="16.5" x2="13.5" y2="16.5"/></svg>
+        <i class="bi bi-person-plus"></i>
         </button>
         <button class="header-btn" id="logoutBtn" title="退出登录">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <i class="bi bi-box-arrow-right"></i>
         </button>
       </div>
     </div>
 
     <!-- 搜索 -->
     <div class="search-box">
-      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#888" stroke-width="2"><circle cx="10.5" cy="10.5" r="7.5"/><line x1="16" y1="16" x2="22" y2="22"/></svg>
+      <i class="bi bi-search search-icon"></i>
       <input type="text" id="searchChat" placeholder="搜索聊天">
     </div>
 
@@ -234,7 +236,7 @@
     <div id="chatWindow" class="chat-window" style="display:none">
       <div class="chat-header">
         <button class="mobile-back" id="mobileBack">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        <i class="bi bi-chevron-left"></i>
         </button>
         <div class="chat-header-avatar" id="chatAvatar">U</div>
         <div class="chat-header-info">
@@ -243,7 +245,7 @@
         </div>
         <div class="chat-header-actions">
           <button class="header-btn" id="chatMenuBtn" title="更多">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+            <i class="bi bi-three-dots"></i>
           </button>
         </div>
       </div>
@@ -253,10 +255,10 @@
 
       <div class="input-area">
         <button class="input-action-btn" id="emojiBtn" title="表情">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+        <i class="bi bi-emoji-smile"></i>
         </button>
         <button class="input-action-btn" id="redpacketBtn" title="红包">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#e74c3c" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M2 10h20"/><path d="M12 4c-2 0-4 3-4 6s4 4 4 4 4-1 4-4-2-6-4-6z"/></svg>
+        <i class="bi bi-gift"></i>
         </button>
         <div class="input-wrapper">
           <input type="text" id="messageInput" placeholder="输入消息..." maxlength="1000" autocomplete="off">
@@ -284,7 +286,7 @@
 <!-- ============================================================ -->
 <!-- 发送红包弹窗 -->
 <!-- ============================================================ -->
-<div id="redpacketModal" class="modal" style="display:none">
+<div id="redpacketModal" class="wt-modal" style="display:none">
   <div class="modal-overlay" id="rpModalOverlay"></div>
   <div class="rp-modal">
     <div class="rp-header">
@@ -343,14 +345,14 @@
 <!-- ============================================================ -->
 <!-- 编辑昵称弹窗 -->
 <!-- ============================================================ -->
-<div id="nameEditModal" class="modal" style="display:none">
+<div id="nameEditModal" class="wt-modal" style="display:none">
   <div class="modal-overlay" id="nameModalOverlay"></div>
-  <div class="modal-content" style="max-width:340px">
-    <div class="modal-header">
+  <div class="wt-modal-content" style="max-width:340px">
+    <div class="wt-modal-header">
       <h3>修改昵称</h3>
       <button class="modal-close" id="nameModalClose">✕</button>
     </div>
-    <div class="modal-body">
+    <div class="wt-modal-body">
       <div class="input-group">
         <input type="text" id="nameEditInput" placeholder="输入新昵称" maxlength="16">
       </div>
@@ -362,14 +364,14 @@
 <!-- ============================================================ -->
 <!-- 实名认证弹窗 -->
 <!-- ============================================================ -->
-<div id="realnameModal" class="modal" style="display:none">
+<div id="realnameModal" class="wt-modal" style="display:none">
   <div class="modal-overlay" id="realnameOverlay"></div>
-  <div class="modal-content" style="max-width:340px">
-    <div class="modal-header">
+  <div class="wt-modal-content" style="max-width:340px">
+    <div class="wt-modal-header">
       <h3>实名认证</h3>
       <button class="modal-close" id="realnameClose">✕</button>
     </div>
-    <div class="modal-body">
+    <div class="wt-modal-body">
       <p style="font-size:.82rem;color:#666;margin-bottom:1rem;line-height:1.5">
         根据监管要求，使用红包功能需完成实名认证。您的信息仅用于身份验证。
       </p>
@@ -387,14 +389,14 @@
 <!-- ============================================================ -->
 <!-- 添加联系人弹窗 -->
 <!-- ============================================================ -->
-<div id="addContactModal" class="modal" style="display:none">
+<div id="addContactModal" class="wt-modal" style="display:none">
   <div class="modal-overlay" id="modalOverlay"></div>
-  <div class="modal-content">
-    <div class="modal-header">
+  <div class="wt-modal-content">
+    <div class="wt-modal-header">
       <h3>添加联系人</h3>
       <button class="modal-close" id="modalClose">✕</button>
     </div>
-    <div class="modal-body">
+    <div class="wt-modal-body">
       <div class="input-group">
         <input type="text" id="searchUserInput" placeholder="搜索用户名或手机号..." autocomplete="off">
       </div>
@@ -406,14 +408,14 @@
 <!-- ============================================================ -->
 <!-- 创建群聊弹窗 -->
 <!-- ============================================================ -->
-<div id="createGroupModal" class="modal" style="display:none">
+<div id="createGroupModal" class="wt-modal" style="display:none">
   <div class="modal-overlay" id="cgModalOverlay"></div>
-  <div class="modal-content" style="max-width:380px">
-    <div class="modal-header">
+  <div class="wt-modal-content" style="max-width:380px">
+    <div class="wt-modal-header">
       <h3>创建群聊</h3>
       <button class="modal-close" id="cgModalClose">✕</button>
     </div>
-    <div class="modal-body">
+    <div class="wt-modal-body">
       <div class="input-group">
         <input type="text" id="cgNameInput" placeholder="输入群名称" maxlength="20">
       </div>
@@ -430,14 +432,14 @@
 <!-- ============================================================ -->
 <!-- 群信息弹窗 -->
 <!-- ============================================================ -->
-<div id="groupInfoModal" class="modal" style="display:none">
+<div id="groupInfoModal" class="wt-modal" style="display:none">
   <div class="modal-overlay" id="giModalOverlay"></div>
-  <div class="modal-content" style="max-width:360px">
-    <div class="modal-header">
+  <div class="wt-modal-content" style="max-width:360px">
+    <div class="wt-modal-header">
       <h3>群聊信息</h3>
       <button class="modal-close" id="giModalClose">✕</button>
     </div>
-    <div class="modal-body">
+    <div class="wt-modal-body">
       <div style="text-align:center;padding:.5rem 0">
         <div class="gi-avatar" id="giAvatar">群</div>
         <div class="gi-name" id="giName">群名称</div>
@@ -459,11 +461,11 @@
 </div>
 
 <!-- 转发弹窗 -->
-<div id="forwardModal" class="modal" style="display:none">
+<div id="forwardModal" class="wt-modal" style="display:none">
   <div class="modal-overlay" id="fwModalOverlay"></div>
-  <div class="modal-content" style="max-width:340px">
-    <div class="modal-header"><h3>转发消息</h3><button class="modal-close" id="fwModalClose">✕</button></div>
-    <div class="modal-body">
+  <div class="wt-modal-content" style="max-width:340px">
+    <div class="wt-modal-header"><h3>转发消息</h3><button class="modal-close" id="fwModalClose">✕</button></div>
+    <div class="wt-modal-body">
       <div class="input-group"><input type="text" id="fwSearch" placeholder="搜索好友..." autocomplete="off"></div>
       <div id="fwContactList" style="max-height:260px;overflow-y:auto;margin-top:.3rem"></div>
     </div>
@@ -471,11 +473,11 @@
 </div>
 
 <!-- 修改密码弹窗 -->
-<div id="changePwdModal" class="modal" style="display:none">
+<div id="changePwdModal" class="wt-modal" style="display:none">
   <div class="modal-overlay" id="cpModalOverlay"></div>
-  <div class="modal-content" style="max-width:340px">
-    <div class="modal-header"><h3>修改密码</h3><button class="modal-close" id="cpModalClose">✕</button></div>
-    <div class="modal-body">
+  <div class="wt-modal-content" style="max-width:340px">
+    <div class="wt-modal-header"><h3>修改密码</h3><button class="modal-close" id="cpModalClose">✕</button></div>
+    <div class="wt-modal-body">
       <div class="input-group"><input type="password" id="cpOldPwd" placeholder="原密码" maxlength="12"></div>
       <div class="input-group" style="margin-top:.5rem"><input type="password" id="cpNewPwd" placeholder="新密码（6-12位）" maxlength="12"></div>
       <div class="input-group" style="margin-top:.5rem"><input type="password" id="cpConfirmPwd" placeholder="确认新密码" maxlength="12"></div>
@@ -488,8 +490,9 @@
 <!-- ============================================================ -->
 <!-- Toast 提示 -->
 <!-- ============================================================ -->
-<div id="toastContainer" class="toast-container"></div>
+<div id="toastContainer" class="wt-toast-container"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="app.js"></script>
 </body>
