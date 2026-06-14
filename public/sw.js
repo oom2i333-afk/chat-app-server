@@ -1,9 +1,9 @@
-// WeTalk - Service Worker v4.0
+// WeTalk - Service Worker v5.0
 // Cache-first for static assets, network-first for API, offline fallback page
 
-const CACHE_NAME = 'wetalk-v4';
-const STATIC_CACHE = 'wetalk-static-v4';
-const DYNAMIC_CACHE = 'wetalk-dynamic-v4';
+const CACHE_NAME = 'wetalk-v5';
+const STATIC_CACHE = 'wetalk-static-v5';
+const DYNAMIC_CACHE = 'wetalk-dynamic-v5';
 const OFFLINE_PAGE = '/offline.html';
 
 const STATIC_ASSETS = [
