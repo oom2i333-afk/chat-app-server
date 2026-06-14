@@ -139,6 +139,31 @@ const giMembers = $('giMembers');
 // Toast
 const toastContainer = $('toastContainer');
 
+// Message search
+const msgSearchBar = $('msgSearchBar');
+const msgSearchInput = $('msgSearchInput');
+const msgSearchCount = $('msgSearchCount');
+const msgSearchUp = $('msgSearchUp');
+const msgSearchDown = $('msgSearchDown');
+const msgSearchClose = $('msgSearchClose');
+const chatSearchBtn = $('chatSearchBtn');
+let msgSearchResults = [], msgSearchIndex = -1;
+
+// Selection mode
+const selectionToolbar = $('selectionToolbar');
+const selectionCount = $('selectionCount');
+const selectionDelete = $('selectionDelete');
+const selectionForward = $('selectionForward');
+const selectionCancel = $('selectionCancel');
+let selectedMsgIds = new Set();
+
+// Image upload
+const imageBtn = $('imageBtn');
+const imageInput = $('imageInput');
+
+// Loading skeleton
+const msgLoadingSkeleton = $('msgLoadingSkeleton');
+
 // ═══════════════════════════════════════════════════════════════
 // Emoji
 // ═══════════════════════════════════════════════════════════════
@@ -184,12 +209,27 @@ document.addEventListener('click', (e) => {
 // ═══════════════════════════════════════════════════════════════
 // Toast
 // ═══════════════════════════════════════════════════════════════
-function showToast(msg, duration = 2000) {
+function showToast(msg, duration = 2000, type = '') {
   const el = document.createElement('div');
-  el.className = 'wt-toast';
-  el.textContent = msg;
+  el.className = 'wt-toast' + (type ? ' toast-' + type : '');
+  const iconMap = { success: '✓', error: '✕', warning: '⚠' };
+  const icon = iconMap[type] || '';
+  if (icon) {
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'toast-icon';
+    iconSpan.textContent = icon;
+    el.appendChild(iconSpan);
+  }
+  const textSpan = document.createElement('span');
+  textSpan.textContent = msg;
+  el.appendChild(textSpan);
   toastContainer.appendChild(el);
-  setTimeout(() => { el.remove(); }, duration);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(-8px) scale(.95)';
+    el.style.transition = 'opacity .2s, transform .2s';
+    setTimeout(() => el.remove(), 200);
+  }, duration);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -421,6 +461,8 @@ function goOnline() {
       });
     }
   });
+  // 登录完成后订阅推送通知
+  setTimeout(subscribePushNotifications, 1500);
 }
 
 function enterMain() {
@@ -1063,8 +1105,10 @@ function openChat(userId) {
 
   if (isGroup) {
     if (!messageCache.has(userId) || messageCache.get(userId).length === 0) {
+      showMessageLoading();
       socket.emit('get-messages', { with: userId }, (msgs) => {
         messageCache.set(userId, msgs || []);
+        hideMessageLoading();
         renderMessages();
         scrollToBottom();
       });
@@ -1075,8 +1119,10 @@ function openChat(userId) {
   } else {
     const chatId = getChatId(currentUser.id, userId);
     if (!messageCache.has(chatId) || messageCache.get(chatId).length === 0) {
+      showMessageLoading();
       socket.emit('get-messages', { with: userId }, (msgs) => {
         messageCache.set(chatId, msgs || []);
+        hideMessageLoading();
         renderMessages();
         scrollToBottom();
         markAsRead(userId);
@@ -1178,20 +1224,33 @@ function renderMessages() {
   const msgs = messageCache.get(chatId) || [];
   const user = contacts.get(activeChat);
 
+  // Show loading skeleton if no messages yet
+  if (msgs.length === 0 && messagesContainer.querySelector('.message-row') === null) {
+    msgLoadingSkeleton.style.display = 'flex';
+  } else {
+    msgLoadingSkeleton.style.display = 'none';
+  }
+
   // 按时间分组添加日期分割
   let lastDate = '';
   let html = '';
+  let prevTime = 0;
 
   // 加载更多按钮（如果有超过20条）
   if (msgs.length > 20) {
     html += `<div class="load-more" onclick="alert('查看更多消息')">查看更多消息</div>`;
   }
 
-  msgs.forEach(m => {
+  msgs.forEach((m, idx) => {
     const msgDate = new Date(m.time).toDateString();
     if (msgDate !== lastDate) {
       html += `<div class="date-divider"><span>${formatDate(m.time)}</span></div>`;
       lastDate = msgDate;
+    }
+    // Use smart time: pass previous message timestamp
+    m._smartTimeHtml = formatTimeSmart(m.time, prevTime);
+    if (m.type !== 'recalled' && m.type !== 'system') {
+      prevTime = m.time;
     }
     html += renderMessageHtml(m, user, activeChat.startsWith('g_'));
   });
@@ -1217,6 +1276,25 @@ function renderMessages() {
       recallMessage(msgId);
     });
   });
+
+  // Long press for selection mode on mobile
+  messagesContainer.querySelectorAll('.message-row').forEach(row => {
+    let longPressTimer = null;
+    row.addEventListener('touchstart', (e) => {
+      longPressTimer = setTimeout(() => {
+        longPressTimer = null;
+        if (selectionToolbar.style.display !== 'flex') {
+          enterSelectionMode();
+          // Select this message
+          selectedMsgIds.add(row.dataset.msgId);
+          row.classList.add('selected');
+          selectionCount.textContent = `已选 ${selectedMsgIds.size} 条`;
+        }
+      }, 500);
+    }, { passive: true });
+    row.addEventListener('touchend', () => { if (longPressTimer) clearTimeout(longPressTimer); });
+    row.addEventListener('touchmove', () => { if (longPressTimer) clearTimeout(longPressTimer); });
+  });
 }
 
 function renderMessageHtml(m, chatPartner, isGroup) {
@@ -1227,7 +1305,7 @@ function renderMessageHtml(m, chatPartner, isGroup) {
     ? `<img src="${sender.avatar}" alt="">`
     : (sender?.avatarChar || '?');
   const avatarBg = sender?.avatar ? '' : (sender?.avatarColor || '#999');
-  const timeStr = formatTime(m.time);
+  const timeStr = m._smartTimeHtml || formatTime(m.time);
 
   // 撤回消息
   if (m.type === 'recalled') {
@@ -1272,6 +1350,24 @@ function renderMessageHtml(m, chatPartner, isGroup) {
       </div>`;
   }
 
+  // 图片消息
+  if (m.type === 'image') {
+    const statusIcon = isMine ? getStatusSvg(m.status) : '';
+    const imgSrc = m.imageUrl || m.text || '';
+    return `
+      <div class="message-row ${isMine ? 'mine' : 'other'}" data-msg-id="${m.id}" data-chat-id="${getChatId(currentUser.id, activeChat)}">
+        <div class="message-avatar" style="background:${avatarBg}">${avatarHtml}</div>
+        <div class="message-body">
+          ${senderName ? `<div style="font-size:.7rem;color:#888;margin-bottom:1px;padding-left:2px">${escapeHtml(senderName)}</div>` : ''}
+          <img class="message-image" src="${imgSrc}" alt="图片" onclick="showImagePreview('${imgSrc}')">
+          <div class="message-footer">
+            <span class="message-time">${timeStr}</span>
+            ${statusIcon}
+          </div>
+        </div>
+      </div>`;
+  }
+
   // 普通文本消息
   const statusIcon = isMine ? getStatusSvg(m.status) : '';
   return `
@@ -1305,7 +1401,7 @@ function getStatusSvg(status) {
 
 function canRecall(msg) {
   if (msg.from !== currentUser.id) return false;
-  if (msg.type !== 'text') return false;
+  if (msg.type !== 'text' && msg.type !== 'image') return false;
   return (Date.now() - msg.time) < 180000; // 3分钟
 }
 
@@ -1349,7 +1445,239 @@ function updateSendBtn() {
   sendBtn.disabled = !messageInput.value.trim();
 }
 
-// ─── 右键菜单 / 回复 / 转发 / 收藏 ──────────────────────
+// ─── Image upload ──────────────────────────────────────────
+imageBtn.addEventListener('click', () => imageInput.click());
+imageInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file || !activeChat) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('图片不能超过 5MB', 2000, 'error'); return; }
+  if (!file.type.startsWith('image/')) { showToast('请选择图片文件', 2000, 'error'); return; }
+
+  // Show a progress indicator
+  showToast('上传中...', 3000);
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const dataUrl = ev.target.result;
+    socket.emit('send-image', { to: activeChat, dataUrl, fileName: file.name }, (msg) => {
+      if (msg && !msg.error) {
+        const chatId = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
+        if (!messageCache.has(chatId)) messageCache.set(chatId, []);
+        messageCache.get(chatId).push(msg);
+        renderMessages();
+        scrollToBottom();
+        renderChatList();
+      } else {
+        showToast(msg?.error || '图片发送失败', 2000, 'error');
+      }
+    });
+  };
+  reader.readAsDataURL(file);
+  imageInput.value = '';
+});
+
+// ─── Image preview ─────────────────────────────────────────
+function showImagePreview(src) {
+  const overlay = document.createElement('div');
+  overlay.className = 'img-preview-overlay';
+  overlay.innerHTML = `<img src="${src}" alt=""><button class="img-preview-close" id="imgPreviewClose"><i class="bi bi-x-lg"></i></button>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay || e.target.closest('.img-preview-close')) {
+      overlay.style.opacity = '0';
+      overlay.style.transition = 'opacity .2s';
+      setTimeout(() => overlay.remove(), 200);
+    }
+  });
+}
+window.showImagePreview = showImagePreview;
+
+// ─── Message search ────────────────────────────────────────
+chatSearchBtn.addEventListener('click', () => {
+  if (!activeChat) { showToast('请先打开一个聊天', 1500, 'warning'); return; }
+  msgSearchBar.style.display = 'flex';
+  msgSearchInput.value = '';
+  msgSearchInput.focus();
+  msgSearchCount.textContent = '';
+  msgSearchResults = [];
+  msgSearchIndex = -1;
+  clearSearchHighlights();
+});
+
+msgSearchClose.addEventListener('click', () => {
+  msgSearchBar.style.display = 'none';
+  clearSearchHighlights();
+});
+
+msgSearchInput.addEventListener('input', () => {
+  const q = msgSearchInput.value.trim().toLowerCase();
+  if (!q) { msgSearchCount.textContent = ''; clearSearchHighlights(); return; }
+  const chatId = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
+  const msgs = messageCache.get(chatId) || [];
+  msgSearchResults = [];
+  msgs.forEach((m, i) => {
+    if (m.text && m.text.toLowerCase().includes(q) && m.type !== 'recalled') {
+      msgSearchResults.push({ index: i, msg: m });
+    }
+  });
+  msgSearchIndex = msgSearchResults.length > 0 ? 0 : -1;
+  highlightSearchResults(q);
+});
+
+msgSearchUp.addEventListener('click', () => {
+  if (msgSearchResults.length === 0) return;
+  msgSearchIndex = (msgSearchIndex - 1 + msgSearchResults.length) % msgSearchResults.length;
+  scrollToSearchResult();
+});
+
+msgSearchDown.addEventListener('click', () => {
+  if (msgSearchResults.length === 0) return;
+  msgSearchIndex = (msgSearchIndex + 1) % msgSearchResults.length;
+  scrollToSearchResult();
+});
+
+function clearSearchHighlights() {
+  messagesContainer.querySelectorAll('.msg-search-highlight, .msg-search-current').forEach(el => {
+    el.classList.remove('msg-search-highlight', 'msg-search-current');
+  });
+}
+
+function highlightSearchResults(q) {
+  clearSearchHighlights();
+  const chatId = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
+  const msgs = messageCache.get(chatId) || [];
+  // Highlight all matching messages
+  msgSearchResults.forEach((r, idx) => {
+    const row = messagesContainer.querySelector(`[data-msg-id="${r.msg.id}"]`);
+    if (row) {
+      const bubble = row.querySelector('.message-bubble');
+      if (bubble) {
+        bubble.classList.add('msg-search-highlight');
+        if (idx === msgSearchIndex) {
+          bubble.classList.add('msg-search-current');
+        }
+      }
+    }
+  });
+  const total = msgSearchResults.length;
+  if (total === 0) {
+    msgSearchCount.textContent = '无结果';
+  } else {
+    msgSearchCount.textContent = `${msgSearchIndex + 1}/${total}`;
+  }
+  scrollToSearchResult();
+}
+
+function scrollToSearchResult() {
+  if (msgSearchIndex < 0 || msgSearchIndex >= msgSearchResults.length) return;
+  const r = msgSearchResults[msgSearchIndex];
+  const row = messagesContainer.querySelector(`[data-msg-id="${r.msg.id}"]`);
+  if (row) {
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Update current highlight
+    messagesContainer.querySelectorAll('.msg-search-current').forEach(el => el.classList.remove('msg-search-current'));
+    const bubble = row.querySelector('.message-bubble');
+    if (bubble) bubble.classList.add('msg-search-current');
+    msgSearchCount.textContent = `${msgSearchIndex + 1}/${msgSearchResults.length}`;
+  }
+}
+
+// ─── Selection mode ────────────────────────────────────────
+selectionCancel.addEventListener('click', exitSelectionMode);
+
+selectionDelete.addEventListener('click', () => {
+  if (selectedMsgIds.size === 0) return;
+  if (!confirm(`确定删除选中的 ${selectedMsgIds.size} 条消息？`)) return;
+  const chatId = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
+  const msgs = messageCache.get(chatId);
+  if (!msgs) return;
+  // Delete from local cache
+  for (const id of selectedMsgIds) {
+    const idx = msgs.findIndex(m => m.id === id);
+    if (idx > -1) msgs.splice(idx, 1);
+  }
+  exitSelectionMode();
+  renderMessages();
+  showToast('已删除', 1500, 'success');
+});
+
+selectionForward.addEventListener('click', () => {
+  if (selectedMsgIds.size === 0) return;
+  const chatId = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
+  const msgs = messageCache.get(chatId) || [];
+  const firstMsg = msgs.find(m => m.id === [...selectedMsgIds][0]);
+  if (firstMsg) {
+    ctxMsgId = firstMsg.id;
+    ctxMsgChatId = chatId;
+    exitSelectionMode();
+    showBsModal(document.getElementById('forwardModal'));
+    renderForwardList(myFriends);
+    document.getElementById('fwSearch').value = '';
+    document.getElementById('fwSearch').focus();
+  }
+});
+
+function enterSelectionMode() {
+  selectedMsgIds.clear();
+  selectionToolbar.style.display = 'flex';
+  selectionCount.textContent = '已选 0 条';
+  // Make messages selectable by click
+  document.querySelectorAll('.message-row').forEach(row => {
+    row.classList.add('selectable');
+    row.addEventListener('click', handleMessageSelect);
+  });
+}
+
+function exitSelectionMode() {
+  selectedMsgIds.clear();
+  selectionToolbar.style.display = 'none';
+  document.querySelectorAll('.message-row').forEach(row => {
+    row.classList.remove('selectable', 'selected');
+    row.removeEventListener('click', handleMessageSelect);
+  });
+}
+
+function handleMessageSelect(e) {
+  const row = e.currentTarget;
+  const msgId = row.dataset.msgId;
+  if (!msgId) return;
+  if (selectedMsgIds.has(msgId)) {
+    selectedMsgIds.delete(msgId);
+    row.classList.remove('selected');
+  } else {
+    selectedMsgIds.add(msgId);
+    row.classList.add('selected');
+  }
+  selectionCount.textContent = `已选 ${selectedMsgIds.size} 条`;
+}
+
+// ─── Loading skeleton ──────────────────────────────────────
+function showMessageLoading() {
+  msgLoadingSkeleton.style.display = 'flex';
+  messagesContainer.querySelectorAll('.message-row, .date-divider, .load-more').forEach(el => el.style.display = 'none');
+}
+function hideMessageLoading() {
+  msgLoadingSkeleton.style.display = 'none';
+  messagesContainer.querySelectorAll('.message-row, .date-divider, .load-more').forEach(el => el.style.display = '');
+}
+
+// ─── Smart time display ────────────────────────────────────
+function formatTimeSmart(ts, prevTs) {
+  const d = new Date(ts);
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const hhmm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+  // If within 3 minutes of previous message, hide
+  if (prevTs && (ts - prevTs) < 180000) {
+    return `<span class="message-time-smart hidden-time">${hhmm}</span>`;
+  }
+
+  if (d.toDateString() === now.toDateString()) return `<span class="message-time-smart">${hhmm}</span>`;
+  const y = new Date(now); y.setDate(y.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return `<span class="message-time-smart">昨天 ${hhmm}</span>`;
+  return `<span class="message-time-smart">${pad(d.getMonth()+1)}/${pad(d.getDate())} ${hhmm}</span>`;
+}
+
 let ctxMsgId = null, ctxMsgChatId = null, replyToMsg = null;
 document.addEventListener('contextmenu', (e) => {
   const bubble = e.target.closest('.message-bubble, .rp-bubble');
@@ -1466,9 +1794,11 @@ messageInput.addEventListener('input', () => {
       if (!q.includes(' ') && !atMenuDiv) {
         socket.emit('get-group-info', activeChat, (res) => {
           if (!res.success) return;
-          atMenuDiv = document.createElement('div'); atMenuDiv.id = 'atMenu';
-          atMenuDiv.style.cssText = 'position:absolute;bottom:100%;left:0;background:#2e2e2e;border-radius:8px;padding:.3rem;max-height:150px;overflow-y:auto;z-index:50;min-width:120px;box-shadow:0 4px 20px rgba(0,0,0,.3)';
-          atMenuDiv.innerHTML = (res.group.memberDetails||[]).filter(m=>(m.user?.name||'').toLowerCase().includes(q)).map(m=>`<div class="at-item" style="padding:.25rem .5rem;font-size:.8rem;color:#ddd;cursor:pointer;border-radius:4px" onclick="selectAt('${escapeHtml(m.user?.name||m.userId)}')">@${escapeHtml(m.user?.name||m.userId)}</div>`).join('');
+          atMenuDiv = document.createElement('div'); atMenuDiv.className = 'at-menu';
+          atMenuDiv.innerHTML = (res.group.memberDetails||[]).filter(m=>(m.user?.name||'').toLowerCase().includes(q)).map(m=>{
+            const ah = m.user?.avatarChar || '?'; const ab = m.user?.avatarColor || '#666';
+            return `<div class="at-item" onclick="selectAt('${escapeHtml(m.user?.name||m.userId)}')"><span class="at-avatar" style="background:${ab}">${ah}</span>@${escapeHtml(m.user?.name||m.userId)}</div>`;
+          }).join('');
           document.querySelector('.input-area')?.appendChild(atMenuDiv);
         });
       } else if (q.includes(' ')) { atMenuDiv?.remove(); atMenuDiv = null; }
@@ -1910,6 +2240,71 @@ function showNotification(title, body) {
 // ─── 请求通知权限 ──────────────────────────────────────────
 if ('Notification' in window && Notification.permission === 'default') {
   Notification.requestPermission();
+}
+
+// ─── PWA 推送通知订阅 ──────────────────────────────────────
+async function subscribePushNotifications() {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.log('[PWA] 推送通知不可用');
+      return;
+    }
+    if (!currentUser?.id) {
+      console.log('[PWA] 等待用户登录后订阅推送');
+      return;
+    }
+    if (Notification.permission !== 'granted') {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') return;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    // 先检查现有的订阅
+    const existing = await registration.pushManager.getSubscription();
+    if (existing) {
+      // 已有有效订阅，同步到服务器
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id, subscription: existing }),
+      });
+      return;
+    }
+
+    // 获取 VAPID 公钥
+    const keyResp = await fetch('/api/push/vapid-public-key');
+    const keyData = await keyResp.json();
+    if (!keyData.configured || !keyData.publicKey) {
+      console.log('[PWA] 推送未配置（缺少 VAPID 密钥）');
+      return;
+    }
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+    });
+
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: currentUser.id, subscription }),
+    });
+    console.log('[PWA] 推送订阅成功');
+  } catch (err) {
+    console.warn('[PWA] 推送订阅失败:', err.message);
+  }
+}
+
+// 工具：将 base64 URL 编码的 VAPID 公钥转换为 Uint8Array
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const output = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    output[i] = rawData.charCodeAt(i);
+  }
+  return output;
 }
 
 // ─── 窗口自适应 ──────────────────────────────────────────

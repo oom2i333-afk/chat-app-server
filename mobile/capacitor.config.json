@@ -1,36 +1,67 @@
 {
-  "appId": "com.chatapp.mobile",
-  "appName": "Chat App",
+  "appId": "com.chatapp.wetalk",
+  "appName": "WeTalk",
   "webDir": "src",
   "bundledWebRuntime": false,
   "server": {
     "url": "https://chat-app-server-production-a0da.up.railway.app",
     "cleartext": false,
-    "allowNavigation": ["*"]
+    "allowNavigation": ["*"],
+    "androidScheme": "https",
+    "iosScheme": "capacitor"
   },
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 1500,
+      "launchShowDuration": 2000,
       "launchAutoHide": true,
       "backgroundColor": "#1aad19",
-      "showSpinner": false
+      "showSpinner": false,
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "splashFullScreen": true,
+      "splashImmersive": true
     },
     "StatusBar": {
       "style": "DARK",
-      "backgroundColor": "#2e2e2e"
+      "backgroundColor": "#2e2e2e",
+      "overlaysWebView": false
     },
     "PushNotifications": {
       "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon_configurable",
+      "iconColor": "#1aad19",
+      "sound": "beep.wav"
+    },
+    "Badge": {
+      "persist": true,
+      "autoClear": false
+    },
+    "App": {
+      "appUrlOpen": true,
+      "handleDeeplinks": true
+    },
+    "Keyboard": {
+      "resize": "body",
+      "style": "DARK",
+      "resizeOnFullScreen": true
+    },
+    "CapacitorHttp": {
+      "enabled": true
     }
   },
   "android": {
     "allowMixedContent": false,
     "captureInput": true,
-    "webContentsDebuggingEnabled": false
+    "webContentsDebuggingEnabled": false,
+    "backgroundColor": "#1aad19",
+    "hideLogs": true
   },
   "ios": {
     "contentInset": "always",
     "allowsLinkPreview": true,
-    "scrollEnabled": true
+    "scrollEnabled": true,
+    "preferredContentMode": "mobile"
   }
 }

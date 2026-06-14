@@ -374,12 +374,12 @@
       showUI('outgoing', user);
       createPC();
 
-      pc.createOffer().then(function (offer) {
-        return pc.setLocalDescription(offer);
+      peerConnection.createOffer().then(function (offer) {
+        return peerConnection.setLocalDescription(offer);
       }).then(function () {
         socket.emit('call-user', {
           to: callTarget,
-          signal: pc.localDescription,
+          signal: peerConnection.localDescription,
           fromName: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : '用户',
           video: isVideo,
           avatar: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.avatar : null,
@@ -407,12 +407,12 @@
       createPC();
 
       try {
-        pc.setRemoteDescription(new RTCSessionDescription(pendingCallInfo.signal)).then(function () {
-          return pc.createAnswer();
+        peerConnection.setRemoteDescription(new RTCSessionDescription(pendingCallInfo.signal)).then(function () {
+          return peerConnection.createAnswer();
         }).then(function (answer) {
-          return pc.setLocalDescription(answer);
+          return peerConnection.setLocalDescription(answer);
         }).then(function () {
-          socket.emit('accept-call', { to: callTarget, signal: pc.localDescription });
+          socket.emit('accept-call', { to: callTarget, signal: peerConnection.localDescription });
           state = CallState.CONNECTED;
           showUI('connected', { name: pendingCallInfo.fromName });
           pendingCallInfo = null;
@@ -570,7 +570,7 @@
       if (state !== CallState.CALLING) return;
       stopRingtone();
       state = CallState.CONNECTING;
-      pc.setRemoteDescription(new RTCSessionDescription(data.signal))
+      peerConnection.setRemoteDescription(new RTCSessionDescription(data.signal))
         .then(function () {
           state = CallState.CONNECTED;
           showUI('connected', callTargetInfo);

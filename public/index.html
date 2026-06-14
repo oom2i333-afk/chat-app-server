@@ -13,6 +13,83 @@
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+<!-- PWA / Open Graph 元标签 -->
+<meta name="theme-color" content="#2e2e2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WeTalk">
+<meta name="application-name" content="WeTalk">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<meta name="HandheldFriendly" content="true">
+<meta name="apple-itunes-app" content="app-id=wetalk">
+<!-- Windows / IE 固定磁贴 -->
+<meta name="msapplication-TileColor" content="#1aad19">
+<meta name="msapplication-TileImage" content="/icons/icon-144.png">
+<meta name="msapplication-config" content="none">
+<!-- Open Graph -->
+<meta property="og:title" content="WeTalk - 畅聊">
+<meta property="og:description" content="安全·畅聊·自在 - 类微信聊天应用">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://chat-app-server-production-a0da.up.railway.app">
+<meta property="og:image" content="/icons/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:locale" content="zh_CN">
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="WeTalk - 畅聊">
+<meta name="twitter:description" content="安全·畅聊·自在 - 类微信聊天应用">
+<meta name="twitter:image" content="/icons/icon-512.png">
+<!-- 启动屏幕 - iOS -->
+<link rel="apple-touch-startup-image" href="/icons/icon-512.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+<!-- PWA manifest & Service Worker -->
+<link rel="manifest" href="/manifest.json">
+<link rel="serviceworker" href="/sw.js">
+<!-- Apple touch icons (所有尺寸) -->
+<link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="120x120" href="/icons/icon-128.png">
+<link rel="apple-touch-icon" sizes="76x76" href="/icons/icon-72.png">
+<!-- 浏览器图标 -->
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-48.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-48.png">
+<link rel="icon" type="image/png" sizes="144x144" href="/icons/icon-144.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+<!-- 注册 Service Worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => {
+          console.log('[PWA] SW registered:', reg.scope);
+          // 检查更新
+          reg.addEventListener('updatefound', () => {
+            const newSW = reg.installing;
+            newSW.addEventListener('statechange', () => {
+              if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                // 有新版本可用，通知用户刷新
+                if (confirm('新版本已可用，是否刷新？')) {
+                  newSW.postMessage({ type: 'SKIP_WAITING' });
+                  window.location.reload();
+                }
+              }
+            });
+          });
+        })
+        .catch(err => console.warn('[PWA] SW registration failed:', err));
+    });
+  }
+  // 监听控制器的状态变化（SW 跳过等待后）
+  let refreshing = false;
+  navigator.serviceWorker?.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
+</script>
 <title>WeTalk - 畅聊</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -230,13 +307,19 @@
   <div class="chat-area">
     <!-- 空状态 -->
     <div id="emptyState" class="empty-state">
-      <div class="empty-icon">
-        <svg viewBox="0 0 120 120" width="120" height="120">
-          <rect x="10" y="20" width="100" height="70" rx="12" fill="#e8f5e9" stroke="#c8e6c9" stroke-width="2"/>
-          <text x="30" y="55" font-size="28">💬</text>
-          <text x="28" y="78" font-size="22">💚</text>
-          <circle cx="80" cy="45" r="3" fill="#1aad19"/>
-          <circle cx="70" cy="45" r="2" fill="#1aad19"/>
+      <div class="empty-icon empty-icon-chat">
+        <svg viewBox="0 0 140 140" width="140" height="140" fill="none">
+          <rect x="20" y="25" width="100" height="75" rx="14" fill="#e8f5e9" stroke="#c8e6c9" stroke-width="2"/>
+          <circle cx="48" cy="52" r="4" fill="#1aad19" opacity="0.4"/>
+          <circle cx="62" cy="52" r="4" fill="#1aad19" opacity="0.6"/>
+          <circle cx="76" cy="52" r="4" fill="#1aad19" opacity="0.8"/>
+          <circle cx="90" cy="52" r="4" fill="#1aad19"/>
+          <rect x="42" y="66" width="56" height="3" rx="1.5" fill="#c8e6c9"/>
+          <rect x="42" y="74" width="40" height="3" rx="1.5" fill="#c8e6c9"/>
+          <rect x="42" y="82" width="48" height="3" rx="1.5" fill="#c8e6c9"/>
+          <path d="M70 100l-10 12h20l-10-12z" fill="#c8e6c9"/>
+          <circle cx="112" cy="62" r="16" fill="#1aad19" opacity="0.12"/>
+          <path d="M107 62h10M112 57v10" stroke="#1aad19" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
         </svg>
       </div>
       <p class="empty-title">选择一个好友开始聊天</p>
@@ -255,19 +338,55 @@
           <div class="chat-header-status" id="chatStatus">离线</div>
         </div>
         <div class="chat-header-actions">
+          <button class="header-btn" id="chatSearchBtn" title="搜索消息" data-bs-toggle="tooltip">
+            <i class="bi bi-search"></i>
+          </button>
           <button class="header-btn" id="chatMenuBtn" title="更多" data-bs-toggle="tooltip">
             <i class="bi bi-three-dots"></i>
           </button>
         </div>
       </div>
 
-      <div class="messages-container" id="messagesContainer"></div>
+      <!-- Message search bar (hidden by default) -->
+      <div id="msgSearchBar" class="msg-search-bar" style="display:none">
+        <i class="bi bi-search msg-search-icon"></i>
+        <input type="text" id="msgSearchInput" placeholder="搜索消息..." autocomplete="off">
+        <span class="msg-search-count" id="msgSearchCount"></span>
+        <div class="msg-search-nav">
+          <button id="msgSearchUp" class="msg-search-nav-btn" title="上一个"><i class="bi bi-chevron-up"></i></button>
+          <button id="msgSearchDown" class="msg-search-nav-btn" title="下一个"><i class="bi bi-chevron-down"></i></button>
+        </div>
+        <button id="msgSearchClose" class="msg-search-close"><i class="bi bi-x"></i></button>
+      </div>
+
+      <!-- Selection mode toolbar (hidden by default) -->
+      <div id="selectionToolbar" class="selection-toolbar" style="display:none">
+        <span id="selectionCount" class="selection-count">已选 0 条</span>
+        <button class="selection-action" id="selectionDelete"><i class="bi bi-trash"></i> 删除</button>
+        <button class="selection-action" id="selectionForward"><i class="bi bi-forward"></i> 转发</button>
+        <button class="selection-action" id="selectionCancel"><i class="bi bi-x-lg"></i> 取消</button>
+      </div>
+
+      <div class="messages-container" id="messagesContainer">
+        <!-- Loading skeleton displayed while messages load -->
+        <div id="msgLoadingSkeleton" class="msg-loading-skeleton" style="display:none">
+          <div class="skeleton-row"><div class="skeleton-avatar"></div><div class="skeleton-line skeleton-line-1"></div></div>
+          <div class="skeleton-row mine"><div class="skeleton-line skeleton-line-2"></div><div class="skeleton-avatar"></div></div>
+          <div class="skeleton-row"><div class="skeleton-avatar"></div><div class="skeleton-line skeleton-line-3"></div></div>
+          <div class="skeleton-row mine"><div class="skeleton-line skeleton-line-4"></div><div class="skeleton-avatar"></div></div>
+          <div class="skeleton-row"><div class="skeleton-avatar"></div><div class="skeleton-line skeleton-line-1"></div></div>
+        </div>
+      </div>
       <div class="typing-indicator" id="typingIndicator"></div>
 
       <div class="input-area">
         <button class="input-action-btn" id="emojiBtn" title="表情">
         <i class="bi bi-emoji-smile"></i>
         </button>
+        <button class="input-action-btn" id="imageBtn" title="发送图片">
+        <i class="bi bi-image"></i>
+        </button>
+        <input type="file" id="imageInput" accept="image/*" hidden>
         <button class="input-action-btn" id="redpacketBtn" title="红包">
         <i class="bi bi-gift"></i>
         </button>
