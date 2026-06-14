@@ -661,6 +661,8 @@ body {
    Modal
    ═══════════════════════════════════════════════════════════════ */
 .wt-modal { position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center; }
+.wt-modal.modal { display:flex; } /* override Bootstrap modal display:block */
+.wt-modal.modal.show { display:flex !important; } /* override Bootstrap inline display:block */
 .modal-overlay {
   position:absolute; inset:0; background:rgba(0,0,0,.4);
   animation:fadeIn .2s ease-out;

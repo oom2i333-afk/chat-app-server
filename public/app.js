@@ -605,13 +605,13 @@ searchUserInput.addEventListener('input', () => {
 // 添加联系人
 // ═══════════════════════════════════════════════════════════════
 addContactBtn2.addEventListener('click', () => {
-  addContactModal.style.display = 'flex';
+  showBsModal(addContactModal);
   searchUserInput.value = '';
   searchResults.innerHTML = '';
   searchUserInput.focus();
 });
 modalOverlay.onclick = modalClose.onclick = () => {
-  addContactModal.style.display = 'none';
+  hideBsModal(addContactModal);
 };
 
 // ─── 创建群聊 ─────────────────────────────────────────────
@@ -619,10 +619,10 @@ createGroupBtn.addEventListener('click', () => {
   cgNameInput.value = '';
   cgSearchInput.value = '';
   renderCgContactList(Array.from(contacts.values()).filter(c => c.id !== currentUser.id));
-  createGroupModal.style.display = 'flex';
+  showBsModal(createGroupModal);
   cgNameInput.focus();
 });
-cgModalOverlay.onclick = cgModalClose.onclick = () => createGroupModal.style.display = 'none';
+cgModalOverlay.onclick = cgModalClose.onclick = () => hideBsModal(createGroupModal);
 
 const cgSelected = new Set();
 function renderCgContactList(items) {
@@ -663,7 +663,7 @@ cgCreateBtn.addEventListener('click', () => {
     cgCreateBtn.textContent = '创建群聊';
     if (res.success) {
       cgSelected.clear();
-      createGroupModal.style.display = 'none';
+      hideBsModal(createGroupModal);
       myGroups.push(res.group);
       // 把群加入到 contacts 中用于聊天列表
       contacts.set(res.group.id, {
@@ -720,7 +720,7 @@ function openGroupInfo(groupId) {
       const ah = m.user?.avatar?`<img src="${m.user.avatar}">`:(m.user?.avatarChar||'?'); const ab = m.user?.avatar?'':(m.user?.avatarColor||'#666');
       return `<div class="gi-member"><div class="avatar" style="background:${ab}">${ah}</div><span class="gi-member-name">${escapeHtml(nm)}</span><span class="gi-member-role">${rl}</span>${csa?`<button class="gi-member-action" onclick="doSetRole('${g.id}','${m.userId}','admin')">设为管理</button>`:''}${cr?`<button class="gi-member-action" onclick="doRemoveMember('${g.id}','${m.userId}')">移除</button>`:''}</div>`;
     }).join('');
-    groupInfoModal.style.display = 'flex';
+    showBsModal(groupInfoModal);
   });
 }
 window.openGroupInfo = openGroupInfo;
@@ -737,10 +737,10 @@ function doTransferGroup(gid){
   });
 }
 window.doTransferGroup=doTransferGroup;
-function doDisbandGroup(gid){if(confirm('确定解散此群？不可撤销！'))socket.emit('disband-group',{groupId:gid},r=>{if(r.success){showToast('群已解散');groupInfoModal.style.display='none';}else showToast(r.error||'失败');});}
+function doDisbandGroup(gid){if(confirm('确定解散此群？不可撤销！'))socket.emit('disband-group',{groupId:gid},r=>{if(r.success){showToast('群已解散');hideBsModal(groupInfoModal);}else showToast(r.error||'失败');});}
 window.doDisbandGroup=doDisbandGroup;
 
-giModalOverlay.onclick = giModalClose.onclick = () => groupInfoModal.style.display = 'none';
+giModalOverlay.onclick = giModalClose.onclick = () => hideBsModal(groupInfoModal);
 
 function doSetRole(groupId, userId, role) {
   socket.emit('set-group-role', { groupId, userId, role }, (res) => {
@@ -838,7 +838,7 @@ function renderChatList() {
         </div>
         <div class="chat-item-right">
           <div class="chat-item-time">${timeStr}</div>
-          ${c.unread > 0 && !settings?.muted ? `<div class="unread-badge">${c.unread > 99 ? '99+' : c.unread}</div>` : ''}
+          ${c.unread > 0 && !settings?.muted ? `<div class="unread-badge badge bg-danger rounded-pill">${c.unread > 99 ? '99+' : c.unread}</div>` : ''}
           <div style="display:flex;gap:2px;margin-top:4px">
             <span class="chat-action-btn" onclick="event.stopPropagation();togglePin('${u.id}')" title="${settings?.pinned ? '取消置顶' : '置顶'}">📌</span>
             <span class="chat-action-btn" onclick="event.stopPropagation();toggleMute('${u.id}')" title="${settings?.muted ? '取消免打扰' : '免打扰'}">🔇</span>
@@ -887,7 +887,7 @@ function renderContactList() {
         <div class="contact-name">新的朋友</div>
         <div class="contact-status">${pendingCount > 0 ? pendingCount + '个待处理' : '暂无申请'}</div>
       </div>
-      ${pendingCount > 0 ? `<div class="unread-badge">${pendingCount}</div>` : ''}
+      ${pendingCount > 0 ? `<div class="unread-badge badge bg-danger rounded-pill">${pendingCount}</div>` : ''}
     </div>`;
   contactList.innerHTML += frHtml;
 
@@ -1091,7 +1091,7 @@ function openChat(userId) {
 window.openChat = openChat;
 
 function startChat(userId) {
-  addContactModal.style.display = 'none';
+  hideBsModal(addContactModal);
   if (!contacts.has(userId)) {
     // 获取用户资料
     socket.emit('get-profile', userId, (user) => {
@@ -1371,7 +1371,7 @@ document.getElementById('ctxReply').onclick = () => {
   if (msg) { replyToMsg = msg; showQuoteBar(msg); }
 };
 document.getElementById('ctxForward').onclick = () => {
-  document.getElementById('forwardModal').style.display = 'flex';
+  showBsModal(document.getElementById('forwardModal'));
   renderForwardList(myFriends); document.getElementById('fwSearch').value=''; document.getElementById('fwSearch').focus();
 };
 document.getElementById('ctxFavorite').onclick = () => {
@@ -1409,7 +1409,7 @@ sendMessage = function() {
   document.getElementById('quoteBar')?.remove(); replyToMsg = null;
 };
 
-document.getElementById('fwModalOverlay').onclick=document.getElementById('fwModalClose').onclick=()=>document.getElementById('forwardModal').style.display='none';
+document.getElementById('fwModalOverlay').onclick=document.getElementById('fwModalClose').onclick=()=>hideBsModal(document.getElementById('forwardModal'));
 document.getElementById('fwSearch').addEventListener('input',()=>{
   const q=document.getElementById('fwSearch').value.trim().toLowerCase();
   renderForwardList(myFriends.filter(f=>f.name.toLowerCase().includes(q)));
@@ -1424,7 +1424,7 @@ function renderForwardList(list) {
 }
 function doForward(toId) {
   if(!ctxMsgId)return;
-  socket.emit('forward-message',{messageId:ctxMsgId,toUserId:toId},(r)=>{if(r.success){showToast('已转发');document.getElementById('forwardModal').style.display='none';}else showToast(r.error||'失败');});
+  socket.emit('forward-message',{messageId:ctxMsgId,toUserId:toId},(r)=>{if(r.success){showToast('已转发');hideBsModal(document.getElementById('forwardModal'));}else showToast(r.error||'失败');});
 }
 window.doForward=doForward;
 
@@ -1440,13 +1440,13 @@ window.deleteFav=deleteFav;
 document.getElementById('favBackBtn').onclick=()=>{document.getElementById('favoritesPage').classList.remove('active');document.querySelector('[data-tab="profile"]')?.click();};
 
 // ─── 修改密码 ─────────────────────────────────────────────
-document.getElementById('cpModalOverlay').onclick=document.getElementById('cpModalClose').onclick=()=>document.getElementById('changePwdModal').style.display='none';
+document.getElementById('cpModalOverlay').onclick=document.getElementById('cpModalClose').onclick=()=>hideBsModal(document.getElementById('changePwdModal'));
 document.getElementById('cpSaveBtn').addEventListener('click',()=>{
   const o=document.getElementById('cpOldPwd').value,n=document.getElementById('cpNewPwd').value,c=document.getElementById('cpConfirmPwd').value,err=document.getElementById('cpError');
   if(!o){err.textContent='请输入原密码';return;}
   if(!n||n.length<6||n.length>12){err.textContent='新密码需6-12位';return;}
   if(n!==c){err.textContent='两次密码不一致';return;}err.textContent='';
-  socket.emit('change-password',{oldPassword:o,newPassword:n},(r)=>{if(r.success){showToast('密码已修改');document.getElementById('changePwdModal').style.display='none';document.getElementById('cpOldPwd').value='';document.getElementById('cpNewPwd').value='';document.getElementById('cpConfirmPwd').value='';}else err.textContent=r.error||'修改失败';});
+  socket.emit('change-password',{oldPassword:o,newPassword:n},(r)=>{if(r.success){showToast('密码已修改');hideBsModal(document.getElementById('changePwdModal'));document.getElementById('cpOldPwd').value='';document.getElementById('cpNewPwd').value='';document.getElementById('cpConfirmPwd').value='';}else err.textContent=r.error||'修改失败';});
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -1531,7 +1531,7 @@ document.getElementById('ppFavRow')?.addEventListener('click', () => {
   document.getElementById('favoritesPage').classList.add('active'); loadFavorites();
 });
 document.getElementById('ppPwdRow')?.addEventListener('click', () => {
-  document.getElementById('changePwdModal').style.display = 'flex';
+  showBsModal(document.getElementById('changePwdModal'));
   document.getElementById('cpOldPwd').value=''; document.getElementById('cpNewPwd').value=''; document.getElementById('cpConfirmPwd').value=''; document.getElementById('cpError').textContent='';
 });
 
@@ -1566,7 +1566,7 @@ function updateProfileUI() {
 
   // ── 个人资料面板 ──
   let ppImg = ppAvatar.querySelector('img');
-  const ppOverlayHtml = '<div class="pp-avatar-overlay"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>';
+  const ppOverlayHtml = '<div class="pp-avatar-overlay"><i class="bi bi-camera" style="color:#fff;font-size:1.4rem"></i></div>';
 
   if (u.avatar) {
     ppAvatarChar.style.display = 'none';
@@ -1640,11 +1640,11 @@ avatarInput.addEventListener('change', (e) => {
 // ═══════════════════════════════════════════════════════════════
 ppEditName.addEventListener('click', () => {
   nameEditInput.value = currentUser.name;
-  nameEditModal.style.display = 'flex';
+  showBsModal(nameEditModal);
   nameEditInput.focus();
 });
 nameModalOverlay.onclick = nameModalClose.onclick = () => {
-  nameEditModal.style.display = 'none';
+  hideBsModal(nameEditModal);
 };
 nameSaveBtn.addEventListener('click', () => {
   const name = nameEditInput.value.trim();
@@ -1656,7 +1656,7 @@ nameSaveBtn.addEventListener('click', () => {
       renderContactList();
       renderChatList();
       if (activeChat) updateChatHeader(activeChat);
-      nameEditModal.style.display = 'none';
+      hideBsModal(nameEditModal);
       showToast('昵称已更新');
     } else {
       showToast(res.error || '修改失败');
@@ -1672,10 +1672,10 @@ ppRealNameRow.addEventListener('click', () => {
     showToast('已完成实名认证');
     return;
   }
-  realnameModal.style.display = 'flex';
+  showBsModal(realnameModal);
 });
 realnameOverlay.onclick = realnameClose.onclick = () => {
-  realnameModal.style.display = 'none';
+  hideBsModal(realnameModal);
 };
 realnameSubmitBtn.addEventListener('click', () => {
   const realName = realnameInput.value.trim();
@@ -1689,7 +1689,7 @@ realnameSubmitBtn.addEventListener('click', () => {
       updateProfileUI();
       renderContactList();
       renderChatList();
-      realnameModal.style.display = 'none';
+      hideBsModal(realnameModal);
       showToast('已提交认证，等待管理员审核');
     } else {
       showToast(res.error || '认证失败');
@@ -1735,7 +1735,7 @@ rpSendBtn.addEventListener('click', () => {
     } else {
       showToast('使用红包功能需先实名认证');
     }
-    realnameModal.style.display = 'flex';
+    showBsModal(realnameModal);
     return;
   }
 
@@ -1922,5 +1922,10 @@ window.addEventListener('resize', () => {
 
 // ─── 初始化发送按钮状态 ──────────────────────────────────
 updateSendBtn();
+
+// ─── Bootstrap: Tooltip + Modal 辅助 ─────────────────────
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+function showBsModal(el) { bootstrap.Modal.getOrCreateInstance(el).show(); }
+function hideBsModal(el) { const m = bootstrap.Modal.getInstance(el); if (m) m.hide(); }
 
 console.log('💚 WeTalk v2.0 已加载');
