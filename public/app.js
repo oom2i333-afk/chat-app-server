@@ -18,22 +18,16 @@ let socket = null;
 
 function connectSocket(callback) {
   if (socket && socket.connected) {
-    if (callback) callback();
+    if (callback) setTimeout(callback, 50);
     return;
   }
-  // 动态加载 socket.io 客户端库
   if (typeof io === 'undefined') {
-    var s = document.createElement('script');
-    s.src = '/socket.io/socket.io.js';
-    s.onload = function() {
-      initSocket();
-      if (callback) setTimeout(callback, 100); // 等 socket 连接就绪
-    };
-    document.body.appendChild(s);
+    console.warn('[Socket] socket.io 库未加载');
+    if (callback) setTimeout(callback, 50);
     return;
   }
   initSocket();
-  if (callback) setTimeout(callback, 100);
+  if (callback) setTimeout(callback, 1000); // 等 socket 连接就绪（给 WebSocket 握手时间）
 }
 
 function initSocket() {
