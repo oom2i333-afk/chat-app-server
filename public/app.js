@@ -255,10 +255,12 @@ document.querySelectorAll('.emoji-cat').forEach(btn => {
   });
 });
 
-emojiBtn.onclick = (e) => {
-  e.stopPropagation();
-  emojiPanel.style.display = emojiPanel.style.display === 'none' ? 'block' : 'none';
-};
+if (emojiBtn) {
+  emojiBtn.onclick = (e) => {
+    e.stopPropagation();
+    emojiPanel.style.display = emojiPanel.style.display === 'none' ? 'block' : 'none';
+  };
+}
 document.addEventListener('click', (e) => {
   if (!emojiPanel.contains(e.target) && e.target !== emojiBtn) {
     emojiPanel.style.display = 'none';
@@ -721,7 +723,7 @@ searchUserInput.addEventListener('input', () => {
 // ═══════════════════════════════════════════════════════════════
 // 添加联系人
 // ═══════════════════════════════════════════════════════════════
-addContactBtn2.addEventListener('click', () => {
+addContactBtn2?.addEventListener('click', () => {
   showBsModal(addContactModal);
   searchUserInput.value = '';
   searchResults.innerHTML = '';
@@ -732,7 +734,7 @@ modalOverlay.onclick = modalClose.onclick = () => {
 };
 
 // ─── 创建群聊 ─────────────────────────────────────────────
-createGroupBtn.addEventListener('click', () => {
+createGroupBtn?.addEventListener('click', () => {
   cgNameInput.value = '';
   cgSearchInput.value = '';
   renderCgContactList(Array.from(contacts.values()).filter(c => c.id !== currentUser.id));
@@ -886,8 +888,8 @@ function doLogout() {
     location.reload();
   }
 }
-logoutBtn.addEventListener('click', doLogout);
-ppLogout.addEventListener('click', doLogout);
+logoutBtn?.addEventListener('click', doLogout);
+ppLogout?.addEventListener('click', doLogout);
 
 // ═══════════════════════════════════════════════════════════════
 // Tab 切换
@@ -907,7 +909,7 @@ tabs.forEach(tab => {
 // ═══════════════════════════════════════════════════════════════
 // 搜索聊天
 // ═══════════════════════════════════════════════════════════════
-searchChat.addEventListener('input', () => {
+searchChat?.addEventListener('input', () => {
   const q = searchChat.value.trim().toLowerCase();
   document.querySelectorAll('.chat-item, .contact-item').forEach(el => {
     const name = el.querySelector('.chat-item-name, .contact-name')?.textContent?.toLowerCase() || '';
@@ -1507,22 +1509,23 @@ function sendMessage() {
   updateSendBtn();
 }
 
-sendBtn.addEventListener('click', sendMessage);
-messageInput.addEventListener('keydown', (e) => {
+sendBtn?.addEventListener('click', sendMessage);
+messageInput?.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
   }
 });
-messageInput.addEventListener('input', updateSendBtn);
+messageInput?.addEventListener('input', updateSendBtn);
 
 function updateSendBtn() {
+  if (!sendBtn || !messageInput) return;
   sendBtn.disabled = !messageInput.value.trim();
 }
 
 // ─── Image upload ──────────────────────────────────────────
-imageBtn.addEventListener('click', () => imageInput.click());
-imageInput.addEventListener('change', (e) => {
+imageBtn?.addEventListener('click', () => imageInput.click());
+imageInput?.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file || !activeChat) return;
   if (file.size > 5 * 1024 * 1024) { showToast('图片不能超过 5MB', 2000, 'error'); return; }
@@ -1567,7 +1570,7 @@ function showImagePreview(src) {
 window.showImagePreview = showImagePreview;
 
 // ─── Message search ────────────────────────────────────────
-chatSearchBtn.addEventListener('click', () => {
+chatSearchBtn?.addEventListener('click', () => {
   if (!activeChat) { showToast('请先打开一个聊天', 1500, 'warning'); return; }
   msgSearchBar.style.display = 'flex';
   msgSearchInput.value = '';
@@ -1578,12 +1581,12 @@ chatSearchBtn.addEventListener('click', () => {
   clearSearchHighlights();
 });
 
-msgSearchClose.addEventListener('click', () => {
+msgSearchClose?.addEventListener('click', () => {
   msgSearchBar.style.display = 'none';
   clearSearchHighlights();
 });
 
-msgSearchInput.addEventListener('input', () => {
+msgSearchInput?.addEventListener('input', () => {
   const q = msgSearchInput.value.trim().toLowerCase();
   if (!q) { msgSearchCount.textContent = ''; clearSearchHighlights(); return; }
   const chatId = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
@@ -1598,13 +1601,13 @@ msgSearchInput.addEventListener('input', () => {
   highlightSearchResults(q);
 });
 
-msgSearchUp.addEventListener('click', () => {
+msgSearchUp?.addEventListener('click', () => {
   if (msgSearchResults.length === 0) return;
   msgSearchIndex = (msgSearchIndex - 1 + msgSearchResults.length) % msgSearchResults.length;
   scrollToSearchResult();
 });
 
-msgSearchDown.addEventListener('click', () => {
+msgSearchDown?.addEventListener('click', () => {
   if (msgSearchResults.length === 0) return;
   msgSearchIndex = (msgSearchIndex + 1) % msgSearchResults.length;
   scrollToSearchResult();
@@ -1657,9 +1660,9 @@ function scrollToSearchResult() {
 }
 
 // ─── Selection mode ────────────────────────────────────────
-selectionCancel.addEventListener('click', exitSelectionMode);
+selectionCancel?.addEventListener('click', exitSelectionMode);
 
-selectionDelete.addEventListener('click', () => {
+selectionDelete?.addEventListener('click', () => {
   if (selectedMsgIds.size === 0) return;
   if (!confirm(`确定删除选中的 ${selectedMsgIds.size} 条消息？`)) return;
   const chatId = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
@@ -1675,7 +1678,7 @@ selectionDelete.addEventListener('click', () => {
   showToast('已删除', 1500, 'success');
 });
 
-selectionForward.addEventListener('click', () => {
+selectionForward?.addEventListener('click', () => {
   if (selectedMsgIds.size === 0) return;
   const chatId = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
   const msgs = messageCache.get(chatId) || [];
@@ -1856,7 +1859,7 @@ document.getElementById('cpSaveBtn').addEventListener('click',()=>{
 // 打字状态 / @提醒
 // ═══════════════════════════════════════════════════════════════
 let atMenuDiv = null;
-messageInput.addEventListener('input', () => {
+messageInput?.addEventListener('input', () => {
   if (!activeChat) return;
   socket.emit('typing', { to: activeChat });
   clearTimeout(typingTimeout);
@@ -1889,7 +1892,7 @@ window.selectAt = selectAt;
 // ═══════════════════════════════════════════════════════════════
 // 手机返回
 // ═══════════════════════════════════════════════════════════════
-mobileBack.addEventListener('click', () => {
+mobileBack?.addEventListener('click', () => {
   document.getElementById('sidebar').classList.remove('with-chat');
   document.querySelector('.chat-area').classList.remove('with-chat');
 });
@@ -2013,10 +2016,10 @@ function updateProfileUI() {
 // ═══════════════════════════════════════════════════════════════
 // 头像上传
 // ═══════════════════════════════════════════════════════════════
-ppChangeAvatar.addEventListener('click', () => avatarInput.click());
-ppAvatar.addEventListener('click', () => avatarInput.click());
+ppChangeAvatar?.addEventListener('click', () => avatarInput.click());
+ppAvatar?.addEventListener('click', () => avatarInput.click());
 
-avatarInput.addEventListener('change', (e) => {
+avatarInput?.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   if (file.size > 2 * 1024 * 1024) { showToast('图片不能超过 2MB'); return; }
@@ -2043,7 +2046,7 @@ avatarInput.addEventListener('change', (e) => {
 // ═══════════════════════════════════════════════════════════════
 // 编辑昵称
 // ═══════════════════════════════════════════════════════════════
-ppEditName.addEventListener('click', () => {
+ppEditName?.addEventListener('click', () => {
   nameEditInput.value = currentUser.name;
   showBsModal(nameEditModal);
   nameEditInput.focus();
@@ -2072,7 +2075,7 @@ nameSaveBtn.addEventListener('click', () => {
 // ═══════════════════════════════════════════════════════════════
 // 实名认证
 // ═══════════════════════════════════════════════════════════════
-ppRealNameRow.addEventListener('click', () => {
+ppRealNameRow?.addEventListener('click', () => {
   if (currentUser.realNameVerified) {
     showToast('已完成实名认证');
     return;
@@ -2106,7 +2109,7 @@ realnameSubmitBtn.addEventListener('click', () => {
 // 红包
 // ═══════════════════════════════════════════════════════════════
 // 打开红包发送弹窗
-redpacketBtn.addEventListener('click', () => {
+redpacketBtn?.addEventListener('click', () => {
   if (!activeChat) { showToast('请先选择一个聊天'); return; }
   const user = contacts.get(activeChat);
   if (!user) return;
@@ -2261,7 +2264,7 @@ window.recallMessage = recallMessage;
 // ═══════════════════════════════════════════════════════════════
 // 侧栏头像点击（切换到"我的"）
 // ═══════════════════════════════════════════════════════════════
-sidebarProfile.addEventListener('click', () => {
+sidebarProfile?.addEventListener('click', () => {
   tabs.forEach(t => t.classList.remove('active'));
   tabs[2]?.classList.add('active');
   chatList.classList.remove('active');
