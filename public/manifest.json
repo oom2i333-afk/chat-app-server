@@ -1,0 +1,30 @@
+{
+  "name": "WeTalk - 畅聊",
+  "short_name": "WeTalk",
+  "description": "安全·畅聊·自在 - 类微信聊天应用",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#1aad19",
+  "theme_color": "#2e2e2e",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["social", "communication"],
+  "lang": "zh-CN",
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "screenshots": []
+}

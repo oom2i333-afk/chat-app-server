@@ -1,0 +1,173 @@
+/* ═══════════════════════════════════════════════════════════════
+   WeTalk - WebRTC 通话 UI 样式 v1.0
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── 通话遮罩层 ────────────────────────────────────────── */
+.call-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  display: none; align-items: center; justify-content: center;
+  animation: callFadeIn .3s ease-out;
+}
+.call-overlay.show { display: flex; }
+
+/* ─── 通话背景 ──────────────────────────────────────────── */
+.call-bg {
+  position: absolute; inset: 0;
+  background: linear-gradient(150deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+}
+.call-bg::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 30% 40%, rgba(26,173,25,.08) 0%, transparent 60%),
+              radial-gradient(circle at 70% 60%, rgba(26,173,25,.05) 0%, transparent 40%);
+}
+
+/* ─── 呼入/呼出/通话中通用 ─────────────────────────────── */
+.call-card {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 2rem 1.5rem;
+  animation: slideUp .3s ease-out;
+}
+
+/* ─── 头像 ───────────────────────────────────────────────── */
+.call-avatar-ring {
+  width: 96px; height: 96px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--green, #1aad19), #06b025);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 1.2rem;
+  box-shadow: 0 0 40px rgba(26,173,25,.3);
+  animation: ringPulse 2s infinite;
+}
+.call-avatar-ring.inactive { animation: none; }
+.call-avatar-ring img {
+  width: 88px; height: 88px; border-radius: 50%; object-fit: cover;
+  border: 3px solid #fff;
+}
+.call-avatar-ring .call-avatar-text {
+  width: 88px; height: 88px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; font-weight: 700; color: #fff;
+  background: var(--avatar-bg, #1aad19);
+  border: 3px solid #fff;
+}
+
+@keyframes ringPulse {
+  0%, 100% { box-shadow: 0 0 40px rgba(26,173,25,.3); }
+  50% { box-shadow: 0 0 60px rgba(26,173,25,.5); }
+}
+
+/* ─── 通话信息 ──────────────────────────────────────────── */
+.call-name {
+  font-size: 1.4rem; font-weight: 700; color: #fff;
+  margin-bottom: .2rem;
+}
+.call-status {
+  font-size: .85rem; color: rgba(255,255,255,.6);
+  margin-bottom: 2rem;
+}
+
+/* ─── 按钮组 ────────────────────────────────────────────── */
+.call-buttons {
+  display: flex; gap: 1.2rem; align-items: center;
+}
+.call-btn {
+  width: 56px; height: 56px; border-radius: 50%;
+  border: none; cursor: pointer; font-size: 1.3rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .15s, box-shadow .2s;
+}
+.call-btn:hover { transform: scale(1.08); }
+.call-btn:active { transform: scale(.95); }
+
+.call-btn-accept {
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(46,204,113,.4);
+}
+.call-btn-reject {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(231,76,60,.4);
+}
+.call-btn-end {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
+  width: 64px; height: 64px; font-size: 1.5rem;
+  box-shadow: 0 4px 24px rgba(231,76,60,.5);
+}
+.call-btn-secondary {
+  background: rgba(255,255,255,.12);
+  color: rgba(255,255,255,.8);
+  width: 48px; height: 48px; font-size: 1.1rem;
+  backdrop-filter: blur(8px);
+}
+.call-btn-secondary:hover { background: rgba(255,255,255,.2); }
+.call-btn-secondary.active { background: var(--green, #1aad19); color: #fff; }
+
+.call-btn-label {
+  text-align: center; font-size: .65rem; color: rgba(255,255,255,.5);
+  margin-top: .3rem;
+}
+.call-btn-wrapper {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+}
+
+/* ─── 静音/扬声器状态指示 ───────────────────────────────── */
+.call-btn-indicator { position: relative; }
+.call-btn-indicator .badge-dot {
+  position: absolute; top: -2px; right: -2px;
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid #0f3460;
+}
+.call-btn-indicator .badge-dot.on { background: var(--green); }
+.call-btn-indicator .badge-dot.off { background: #e74c3c; display: none; }
+
+/* ─── 视频通话 ──────────────────────────────────────────── */
+.call-video-container {
+  position: fixed; inset: 0; z-index: 499;
+  background: #000;
+}
+.call-video-local {
+  position: absolute; bottom: 100px; right: 16px;
+  width: 120px; height: 180px; border-radius: 12px;
+  overflow: hidden; border: 2px solid rgba(255,255,255,.3);
+  box-shadow: 0 4px 20px rgba(0,0,0,.5);
+  z-index: 2;
+}
+.call-video-local video {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.call-video-remote {
+  width: 100%; height: 100%;
+}
+.call-video-remote video {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.call-video-controls {
+  position: absolute; bottom: 30px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; gap: 1.2rem; align-items: center;
+  z-index: 3;
+}
+
+/* ─── 通话中控制栏 ─────────────────────────────────------ */
+.call-timer {
+  font-size: .95rem; color: rgba(255,255,255,.7);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 1.5rem;
+}
+
+/* ─── 动画 ──────────────────────────────────────────────── */
+@keyframes callFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ─── 响应式 ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .call-avatar-ring { width: 80px; height: 80px; }
+  .call-avatar-ring img, .call-avatar-ring .call-avatar-text { width: 72px; height: 72px; font-size: 1.6rem; }
+  .call-btn { width: 48px; height: 48px; font-size: 1.1rem; }
+  .call-btn-end { width: 56px; height: 56px; font-size: 1.3rem; }
+  .call-buttons { gap: .8rem; }
+  .call-video-local { width: 96px; height: 144px; }
+}

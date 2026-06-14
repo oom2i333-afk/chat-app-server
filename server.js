@@ -10,13 +10,50 @@ const crypto = require('crypto');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] },
+  cors: { origin: process.env.CORS_ORIGIN || '*', methods: ['GET', 'POST'] },
 });
 
 const PORT = process.env.PORT || 3000;
 
+// ─── 安全头 (Helmet精简版) ─────────────────────────────────
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
+
+// ─── 速率限制 (内存版) ────────────────────────────────────
+const rateLimitMap = new Map();
+function rateLimit(limit, windowMs) {
+  return (req, res, next) => {
+    const key = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+    const now = Date.now();
+    if (!rateLimitMap.has(key)) rateLimitMap.set(key, []);
+    const timestamps = rateLimitMap.get(key).filter(t => now - t < windowMs);
+    if (timestamps.length >= limit) {
+      return res.status(429).json({ success: false, error: '请求过于频繁，请稍后再试' });
+    }
+    timestamps.push(now);
+    rateLimitMap.set(key, timestamps);
+    next();
+  };
+}
+
+// ─── 输入清理函数 ──────────────────────────────────────────
+function sanitize(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/[<>&"']/g, (c) => ({
+    '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;'
+  })[c] || c);
+}
+
 // ─── 静态文件 ──────────────────────────────────────────────
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -200,6 +237,153 @@ app.get('/api/admin/invite-codes', adminAuth, (req, res) => {
   res.json({ success: true, codes: [...inviteCodes] });
 });
 
+// ─── 操作日志 ──────────────────────────────────────────────
+const operationLogs = [];
+function addLog(admin, action, detail) {
+  operationLogs.unshift({ admin, action, detail, time: Date.now() });
+  if (operationLogs.length > 500) operationLogs.length = 500;
+}
+
+// ─── 管理员：获取群组列表 ────────────────────────────────
+app.get('/api/admin/groups', adminAuth, (req, res) => {
+  const groupList = [];
+  for (const [, g] of groups) {
+    groupList.push({
+      id: g.id, name: g.name,
+      createdBy: g.createdBy,
+      createdAt: g.createdAt,
+      memberCount: g.members.length,
+      notice: g.notice || '',
+      onlineCount: g.members.filter(m => users.get(m.userId)?.online).length,
+    });
+  }
+  groupList.sort((a, b) => b.memberCount - a.memberCount);
+  res.json({ success: true, groups: groupList, total: groupList.length });
+});
+
+// ─── 管理员：解散群组 ──────────────────────────────────────
+app.post('/api/admin/disband-group', adminAuth, (req, res) => {
+  const { groupId } = req.body;
+  const g = groups.get(groupId);
+  if (!g) return res.json({ success: false, error: '群组不存在' });
+  io.to(groupId).emit('group-disbanded', { groupId });
+  groups.delete(groupId);
+  addLog('admin', '解散群组', `解散群 ${g.name}(${groupId})`);
+  res.json({ success: true });
+});
+
+// ─── 管理员：获取消息记录 ──────────────────────────────────
+app.get('/api/admin/messages', adminAuth, (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+  const allMsgs = [];
+  for (const [chatId, msgs] of messages) {
+    for (const m of msgs.slice(-50)) {
+      const fromUser = users.get(m.from);
+      allMsgs.push({
+        id: m.id, chatId,
+        from: m.from, fromName: fromUser?.name || '未知',
+        type: m.type || 'text',
+        text: (m.text || '').slice(0, 100),
+        time: m.time,
+        status: m.status,
+      });
+    }
+  }
+  allMsgs.sort((a, b) => b.time - a.time);
+  res.json({ success: true, messages: allMsgs.slice(0, limit), total: allMsgs.length });
+});
+
+// ─── 管理员：获取红包记录 ──────────────────────────────────
+app.get('/api/admin/redpackets', adminAuth, (req, res) => {
+  const packets = [];
+  for (const [id, rp] of redPackets) {
+    packets.push({
+      packetId: id, senderId: rp.senderId, senderName: rp.senderName,
+      amount: rp.amount, opened: rp.opened,
+      openedAt: rp.openedAt, openedBy: rp.openedBy,
+    });
+  }
+  packets.sort((a, b) => (b.openedAt || 0) - (a.openedAt || 0));
+  res.json({ success: true, packets, total: packets.length, totalAmount: packets.reduce((s, p) => s + p.amount, 0).toFixed(2) });
+});
+
+// ─── 管理员：获取详细统计 ────────────────────────────────
+app.get('/api/admin/stats', adminAuth, (req, res) => {
+  const online = [...users.values()].filter(u => u.online).length;
+  const verified = [...users.values()].filter(u => u.realNameVerified).length;
+  const banned = [...users.values()].filter(u => u.status === 'banned').length;
+  const pending = [...users.values()].filter(u => u.verificationStatus === 'pending').length;
+
+  let totalMessages = 0;
+  for (const [, msgs] of messages) totalMessages += msgs.length;
+
+  const today = new Date().toDateString();
+  let todaySignIns = 0;
+  for (const [, rec] of signIns) {
+    if (rec.lastDate === today) todaySignIns++;
+  }
+
+  const totalRedPackets = redPackets.size;
+  const openedPackets = [...redPackets.values()].filter(r => r.opened).length;
+
+  res.json({
+    success: true,
+    stats: {
+      users: { total: users.size, online, verified, banned, pending },
+      messages: { total: totalMessages },
+      groups: { total: groups.size },
+      signIns: { today: todaySignIns },
+      redPackets: { total: totalRedPackets, opened: openedPackets },
+      server: { uptime: process.uptime(), version: '2.0' },
+    },
+  });
+});
+
+// ─── 管理员：系统设置 ──────────────────────────────────────
+const systemSettings = {
+  allowRegister: true,
+  maintenanceMode: false,
+  maxMessageLength: 1000,
+};
+app.get('/api/admin/settings', adminAuth, (req, res) => {
+  res.json({ success: true, settings: systemSettings });
+});
+app.post('/api/admin/settings', adminAuth, (req, res) => {
+  const { key, value } = req.body;
+  if (key in systemSettings) {
+    systemSettings[key] = value;
+    addLog('admin', '修改设置', `${key} = ${JSON.stringify(value)}`);
+    res.json({ success: true, settings: systemSettings });
+  } else {
+    res.json({ success: false, error: '无效设置项' });
+  }
+});
+
+// ─── 管理员：操作日志 ──────────────────────────────────────
+app.get('/api/admin/logs', adminAuth, (req, res) => {
+  res.json({ success: true, logs: operationLogs.slice(0, 200) });
+});
+
+// ─── 管理员：搜索系统内消息 ────────────────────────────────
+app.get('/api/admin/search-messages', adminAuth, (req, res) => {
+  const q = (req.query.q || '').toLowerCase().trim();
+  if (!q) return res.json({ success: true, messages: [] });
+  const results = [];
+  for (const [chatId, msgs] of messages) {
+    for (const m of msgs) {
+      if (m.text && m.text.toLowerCase().includes(q)) {
+        const fromUser = users.get(m.from);
+        results.push({
+          id: m.id, chatId, from: m.from, fromName: fromUser?.name || '未知',
+          text: m.text.slice(0, 150), time: m.time, type: m.type,
+        });
+      }
+    }
+  }
+  results.sort((a, b) => b.time - a.time);
+  res.json({ success: true, messages: results.slice(0, 100) });
+});
+
 // ─── 网络状态接口 ──────────────────────────────────────────
 app.get('/api/status', (req, res) => {
   res.json({
@@ -209,6 +393,8 @@ app.get('/api/status', (req, res) => {
     ips: getLocalIPs(),
     users: users.size,
     groups: groups.size,
+    messages: [...messages.values()].reduce((s, m) => s + m.length, 0),
+    settings: systemSettings,
   });
 });
 
@@ -1050,6 +1236,56 @@ io.on('connection', (socket) => {
     io.to(to).emit('user-stop-typing', { from: socket.userId });
   });
 
+  // ─── WebRTC 通话信令 ─────────────────────────────────
+  socket.on('call-user', (data, callback) => {
+    const from = socket.userId;
+    const to = data.to;
+    if (!from || !to) return;
+    const caller = users.get(from);
+    if (!caller) return;
+    const target = users.get(to);
+    if (!target?.online) {
+      callback?.({ success: false, error: '对方不在线' });
+      return;
+    }
+    io.to(to).emit('call-incoming', {
+      from,
+      fromName: data.fromName || caller.name,
+      signal: data.signal || data.signalData,
+      video: data.video || false,
+      avatar: data.avatar || caller.avatar || null,
+      avatarColor: data.avatarColor || caller.avatarColor || '#1aad19',
+      avatarChar: data.avatarChar || caller.avatarChar || '?',
+    });
+    callback?.({ success: true });
+    console.log(`[通话] ${caller.name} 呼叫 ${target.name}`);
+  });
+
+  socket.on('accept-call', (data, callback) => {
+    const from = socket.userId;
+    if (!from || !data.to) return;
+    io.to(data.to).emit('call-accepted', {
+      from,
+      signal: data.signal || data.signalData,
+    });
+    callback?.({ success: true });
+  });
+
+  socket.on('call-signal', (data) => {
+    const from = socket.userId;
+    if (!from || !data.to) return;
+    io.to(data.to).emit('call-signal', {
+      from,
+      signal: data.signal || data.signalData,
+    });
+  });
+
+  socket.on('end-call', ({ to }) => {
+    const from = socket.userId;
+    if (!from || !to) return;
+    io.to(to).emit('call-ended', { from });
+  });
+
   // ─── 断线 ──────────────────────────────────────────────
   socket.on('disconnect', () => {
     if (socket.userId) {
@@ -1114,6 +1350,64 @@ function getChatListForUser(userId) {
 
   return chatList;
 }
+
+// ─── 数据持久化 ──────────────────────────────────────────────
+const DATA_FILE = path.join(__dirname, 'data', 'backup.json');
+
+function saveData() {
+  try {
+    const dataDir = path.join(__dirname, 'data');
+    fs.mkdirSync(dataDir, { recursive: true });
+    const backup = {
+      time: Date.now(),
+      users: [...users].map(([k, v]) => {
+        const { password, ...rest } = v;
+        return [k, rest];
+      }),
+      messages: [...messages].map(([k, v]) => [k, v.slice(-200)]),
+      groups: [...groups],
+      redPackets: [...redPackets],
+      inviteCodes: [...inviteCodes],
+      friendRequests: [...friendRequests],
+      friends: [...friends].map(([k, v]) => [k, [...v]]),
+      signIns: [...signIns],
+      chatSettings: [...chatSettings].map(([k, v]) => [k, [...v]]),
+    };
+    fs.writeFileSync(DATA_FILE, JSON.stringify(backup, null, 2), 'utf-8');
+    console.log(`[备份] 已保存 ${users.size} 用户, ${messages.size} 聊天`);
+  } catch (e) {
+    console.error('[备份] 保存失败:', e.message);
+  }
+}
+
+function loadData() {
+  try {
+    if (!fs.existsSync(DATA_FILE)) return;
+    const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+    const data = JSON.parse(raw);
+    if (!data.users) return;
+
+    // 恢复时密码设为空字符串，用户需重新登录
+    data.users.forEach(([k, v]) => users.set(k, { ...v, password: '' }));
+    data.messages.forEach(([k, v]) => messages.set(k, v));
+    data.groups.forEach(([k, v]) => groups.set(k, v));
+    data.redPackets.forEach(([k, v]) => redPackets.set(k, v));
+    data.inviteCodes.forEach(c => inviteCodes.add(c));
+    data.friendRequests.forEach(([k, v]) => friendRequests.set(k, v));
+    data.friends.forEach(([k, v]) => friends.set(k, new Set(v)));
+    data.signIns.forEach(([k, v]) => signIns.set(k, v));
+    data.chatSettings.forEach(([k, v]) => chatSettings.set(k, new Map(v)));
+    console.log(`[恢复] 已加载 ${users.size} 用户, ${messages.size} 聊天, ${groups.size} 群组`);
+  } catch (e) {
+    console.error('[恢复] 加载失败:', e.message);
+  }
+}
+
+// 每 60 秒自动保存
+let saveTimer = setInterval(saveData, 60000);
+
+// ─── 启动前加载数据 ──────────────────────────────────────────
+loadData();
 
 // ─── 启动服务器 ──────────────────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {
