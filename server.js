@@ -13,8 +13,6 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: process.env.CORS_ORIGIN || '*', methods: ['GET', 'POST'] },
-  // Prevent socket.io from leaking internal error details
-  serveClient: false,
   connectTimeout: 10000,
   pingTimeout: 5000,
   pingInterval: 10000,
@@ -200,6 +198,11 @@ app.post('/api/admin/login', apiRateLimit, (req, res) => {
     return res.status(400).json({ success: false, error: '参数无效' });
   }
   // Constant-time comparison to prevent timing attacks
+  // Note: crypto.timingSafeEqual requires buffers of equal length
+  if (Buffer.byteLength(username) !== Buffer.byteLength(ADMIN_USER) ||
+      Buffer.byteLength(password) !== Buffer.byteLength(ADMIN_PASS)) {
+    return res.status(401).json({ success: false, error: '账号或密码错误' });
+  }
   const userOk = crypto.timingSafeEqual(Buffer.from(username), Buffer.from(ADMIN_USER));
   const passOk = crypto.timingSafeEqual(Buffer.from(password), Buffer.from(ADMIN_PASS));
   if (userOk && passOk) {

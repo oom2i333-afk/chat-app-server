@@ -468,8 +468,12 @@ tbody tr:last-child td{border-bottom:none}
 
 <script>
 /* ═══════════════════════════════════════════════════════
-   WeTalk Admin v4.0
+   WeTalk Admin v4.1
    ═══════════════════════════════════════════════════════ */
+
+// ─── 全局错误捕获 ────────────────────────────────────
+window.onerror = function() { console.warn('[Admin] 捕获错误:', arguments[0]); return true; };
+window.addEventListener('unhandledrejection', e => { e.preventDefault(); console.warn('[Admin] 未处理的 Promise 拒绝:', e.reason); });
 const APP = {
   token: localStorage.getItem('adminToken') || '',
   tokenExpiry: localStorage.getItem('adminTokenExpiry') || 0,
@@ -547,7 +551,7 @@ async function doLogin() {
 
 if (isTokenValid()) { loadAll().then(ok => { if (ok) enterDashboard(); else showLogin(); }); } else { showLogin(); }
 
-function enterDashboard() { $('loginPage').style.display = 'none'; $('dashboard').style.display = ''; loadAll(); }
+function enterDashboard() { $('loginPage').style.display = 'none'; $('dashboard').style.display = 'flex'; loadAll(); }
 $('logoutBtn').addEventListener('click', () => { APP.token = ''; APP.tokenExpiry = 0; localStorage.removeItem('adminToken'); localStorage.removeItem('adminTokenExpiry'); showLogin(); });
 $('refreshBtn').addEventListener('click', () => loadAll());
 $('exportBtn').addEventListener('click', () => { if(APP.token) window.open('/api/admin/export?format=csv','_blank'); });
@@ -576,31 +580,41 @@ document.querySelectorAll('.nav-item').forEach(el => {
 });
 
 async function loadAll() {
-  try { await Promise.all([fetchUsers(), loadGroups(), loadDashboard(), loadWords(), loadInvites(), loadLogs()]); renderUsers(); return true; }
-  catch(e) { return false; }
+  try {
+    const results = await Promise.allSettled([fetchUsers(), loadGroups(), loadDashboard(), loadWords(), loadInvites(), loadLogs()]);
+    const failed = results.filter(r => r.status === 'rejected').length;
+    if (failed > 0) console.warn('[Admin]', failed, 'API 加载失败');
+    renderUsers();
+    // 即使部分接口失败也进入后台
+    return isTokenValid();
+  } catch(e) { console.error('[Admin] loadAll error:', e); return false; }
 }
 
 /* ─── Dashboard ─── */
 async function loadDashboard() {
-  const d = await api('/api/admin/stats');
-  if (!d || !d.success) return;
-  const s = d.stats;
-  $('sTotal').textContent = s.users.total;
-  $('sOnline').textContent = s.users.online;
-  $('sVerified').textContent = s.users.verified;
-  $('sPending').textContent = s.users.pending;
-  $('sBanned').textContent = s.users.banned;
-  $('sGroups').textContent = s.groups.total;
-  $('sMessages').textContent = s.messages.total;
-  $('sRedPackets').textContent = s.redPackets.total;
-  $('userBadge').textContent = s.users.total;
-  $('verifyBadge').textContent = s.users.pending;
-  $('sysInfo').innerHTML = `
-    <p style="font-size:.76rem;color:var(--text2)">服务器版本: ${s.server.version}</p>
-    <p style="font-size:.76rem;color:var(--text2)">运行时间: ${Math.floor(s.server.uptime / 3600)}小时${Math.floor((s.server.uptime % 3600) / 60)}分钟</p>
-    <p style="font-size:.76rem;color:var(--text2)">今日签到: ${s.signIns.today} 人</p>
-    <p style="font-size:.76rem;color:var(--text2)">红包已领取: ${s.redPackets.opened} / ${s.redPackets.total}</p>`;
-  drawCharts(s);
+  try {
+    const d = await api('/api/admin/stats');
+    if (!d || !d.success) return;
+    const s = d.stats || {};
+    const u = s.users || {}, g = s.groups || {}, m = s.messages || {}, si = s.signIns || {}, rp = s.redPackets || {}, sv = s.server || {};
+    $('sTotal').textContent = u.total ?? 0;
+    $('sOnline').textContent = u.online ?? 0;
+    $('sVerified').textContent = u.verified ?? 0;
+    $('sPending').textContent = u.pending ?? 0;
+    $('sBanned').textContent = u.banned ?? 0;
+    $('sGroups').textContent = g.total ?? 0;
+    $('sMessages').textContent = m.total ?? 0;
+    $('sRedPackets').textContent = rp.total ?? 0;
+    $('userBadge').textContent = u.total ?? 0;
+    $('verifyBadge').textContent = u.pending ?? 0;
+    const uptime = sv.uptime ?? 0;
+    $('sysInfo').innerHTML = `
+      <p style="font-size:.76rem;color:var(--text2)">服务器版本: ${sv.version || '2.0'}</p>
+      <p style="font-size:.76rem;color:var(--text2)">运行时间: ${Math.floor(uptime / 3600)}小时${Math.floor((uptime % 3600) / 60)}分钟</p>
+      <p style="font-size:.76rem;color:var(--text2)">今日签到: ${si.today ?? 0} 人</p>
+      <p style="font-size:.76rem;color:var(--text2)">红包已领取: ${rp.opened ?? 0} / ${rp.total ?? 0}</p>`;
+    drawCharts(s);
+  } catch(e) { console.warn('[Admin] Dashboard load error:', e); }
 }
 
 function drawCharts(stats) {
