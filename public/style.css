@@ -939,9 +939,8 @@ body {
 /* ═══════════════════════════════════════════════════════════════
    Modal
    ═══════════════════════════════════════════════════════════════ */
-.wt-modal { position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center; }
-.wt-modal.modal { display:flex; }
-.wt-modal.modal.show { display:flex !important; }
+.wt-modal { position:fixed; inset:0; z-index:200; display:none; align-items:center; justify-content:center; }
+.wt-modal.show { display:flex !important; }
 .modal-overlay {
   position:absolute; inset:0; background:rgba(0,0,0,.35);
   animation:fadeIn .15s ease-out;
