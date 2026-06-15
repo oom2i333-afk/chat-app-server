@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const serverUrl = process.argv[2] || 'https://chat-app-server.up.railway.app';
+const serverUrl = process.argv[2] || 'https://chat-app-server-production-a0da.up.railway.app';
 const srcDir = path.join(__dirname, 'src');
 
 // 生成 index.html
