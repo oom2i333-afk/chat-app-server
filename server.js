@@ -407,6 +407,7 @@ app.post('/api/register', registerRateLimit, async (req, res) => {
   else ipRegistrations.set(clientIp, { date: today, count: 1 });
 
   console.log(`[注册] 新用户 ${phone} 使用邀请码 ${inviteCode}`);
+  saveDataImmediate(); // ⚡ 注册后立即保存
 
   res.json({ success: true, message: '注册成功', needProfile: true, userId });
 });
@@ -472,6 +473,7 @@ app.post('/api/login', loginRateLimit, async (req, res) => {
     user: sanitizeUser(user),
     needProfile,
   });
+  saveDataImmediate(); // ⚡ 登录成功后立即保存（更新密码hash）
 });
 
 // ─── 上传头像 ──────────────────────────────────────────────
@@ -657,6 +659,7 @@ io.on('connection', (socket) => {
     if (avatar && typeof avatar === 'string' && avatar.startsWith('data:image/')) user.avatar = avatar;
     callback?.({ success: true, user: sanitizeUser(user) });
     io.emit('user-updated', sanitizeUser(user));
+    saveDataImmediate(); // ⚡ 完善资料后立即保存
   });
 
   // ─── Friend request ─────────────────────────────────────
@@ -854,6 +857,7 @@ io.on('connection', (socket) => {
       return callback?.({ success: false, error: '密码修改失败，请重试' });
     }
     callback?.({ success: true });
+    saveDataImmediate(); // ⚡ 修改密码后立即保存
   });
 
   // ─── Search messages ─────────────────────────────────────
@@ -1804,6 +1808,7 @@ function getChatListForUser(userId) {
 // ─── Data persistence ──────────────────────────
 const DATA_FILE = path.join(__dirname, 'data', 'backup.json');
 let savePending = false;
+let saveTimer = null;
 
 function saveData() {
   if (savePending) return; // debounce
@@ -1811,29 +1816,50 @@ function saveData() {
   setImmediate(() => {
     savePending = false;
     try {
-      const dataDir = path.join(__dirname, 'data');
-      fs.mkdirSync(dataDir, { recursive: true });
-      const backup = {
-        time: Date.now(),
-        users: [...users].map(([k, v]) => {
-          const { password, ...rest } = v;
-          return [k, rest];
-        }),
-        messages: [...messages].map(([k, v]) => [k, v.slice(-200)]),
-        groups: [...groups],
-        redPackets: [...redPackets],
-        inviteCodes: [...inviteCodes],
-        friendRequests: [...friendRequests],
-        friends: [...friends].map(([k, v]) => [k, [...v]]),
-        signIns: [...signIns],
-        chatSettings: [...chatSettings].map(([k, v]) => [k, [...v]]),
-      };
-      fs.writeFileSync(DATA_FILE, JSON.stringify(backup, null, 2), 'utf-8');
+      writeDataFile();
       console.log(`[备份] 已保存 ${users.size} 用户, ${messages.size} 聊天`);
     } catch (e) {
       console.error('[备份] 保存失败:', e.message);
     }
   });
+}
+
+// Immediate save (no debounce) — used after critical operations
+function saveDataImmediate() {
+  if (savePending) {
+    // If a debounced save is pending, just flag it to run immediately
+    savePending = false;
+  }
+  try {
+    writeDataFile();
+    console.log(`[备份] 即时保存 ${users.size} 用户, ${messages.size} 聊天`);
+  } catch (e) {
+    console.error('[备份] 即时保存失败:', e.message);
+  }
+}
+
+function writeDataFile() {
+  const dataDir = path.join(__dirname, 'data');
+  fs.mkdirSync(dataDir, { recursive: true });
+  const backup = {
+    time: Date.now(),
+    users: [...users].map(([k, v]) => {
+      const { password, ...rest } = v;
+      return [k, rest];
+    }),
+    messages: [...messages].map(([k, v]) => [k, v.slice(-200)]),
+    groups: [...groups],
+    redPackets: [...redPackets],
+    inviteCodes: [...inviteCodes],
+    friendRequests: [...friendRequests],
+    friends: [...friends].map(([k, v]) => [k, [...v]]),
+    signIns: [...signIns],
+    chatSettings: [...chatSettings].map(([k, v]) => [k, [...v]]),
+  };
+  // Atomic write: write to temp file then rename
+  const tmpFile = DATA_FILE + '.tmp';
+  fs.writeFileSync(tmpFile, JSON.stringify(backup, null, 2), 'utf-8');
+  fs.renameSync(tmpFile, DATA_FILE);
 }
 
 function loadData() {
@@ -1962,7 +1988,29 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 // Periodic save every 60 seconds
-let saveTimer = setInterval(saveData, 60000);
+saveTimer = setInterval(saveData, 60000);
+
+// ─── Ensure data directory exists and check Volume ──────
+const DATA_DIR = path.join(__dirname, 'data');
+try {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  // Check if data dir is writable (test write)
+  fs.writeFileSync(path.join(DATA_DIR, '.write-test'), 'ok');
+  fs.unlinkSync(path.join(DATA_DIR, '.write-test'));
+  // Check if it's a Railway Volume (sticky bit or mount indicator)
+  try {
+    const mounts = fs.readdirSync('/app');
+    if (mounts.includes('data')) {
+      console.log('[存储] 📦 Railway Volume 已挂载 — 数据跨部署持久化');
+    } else {
+      console.log('[存储] 📁 本地存储 — 数据在部署重启后会丢失');
+    }
+  } catch (e) {
+    console.log('[存储] 📁 本地存储 — 数据在部署重启后会丢失');
+  }
+} catch (e) {
+  console.error('[存储] 无法创建 data 目录:', e.message);
+}
 
 // ─── Load on startup ──────────────────────────
 loadData();
@@ -1975,6 +2023,9 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`  📍 http://localhost:${PORT}`);
   console.log(`  🌐 局域网: http://${getLocalIP()}:${PORT}`);
   console.log(`  🖥️  Node ${process.version} | ${os.platform()} | RSS ${memMB}MB`);
+  if (process.env.RAILWAY_VOLUME_DATA) {
+    console.log(`  💾 数据: Railway Volume (持久化)`);
+  }
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 });
 
