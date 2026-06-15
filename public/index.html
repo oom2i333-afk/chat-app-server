@@ -104,7 +104,7 @@ window._loadResources = function() {
     <!-- 登录表单（无验证码 — 登录用速率限制保护） -->
     <div id="loginForm" class="login-form active">
       <div class="input-group"><input type="tel" id="loginPhone" placeholder="手机号" maxlength="11" autofocus></div>
-      <div class="input-group" style="position:relative"><input type="password" id="loginPassword" placeholder="密码" maxlength="12"><span class="pw-toggle" id="loginPwToggle">👁</span></div>
+      <div class="input-group" style="position:relative"><input type="password" id="loginPassword" placeholder="密码" maxlength="64"><span class="pw-toggle" id="loginPwToggle">👁</span></div>
       <div id="loginError" class="form-error"></div>
       <button id="loginBtn" class="btn-primary">登 录</button>
       <p class="login-tip" style="cursor:pointer" id="forgotPwdLink">忘记密码？</p>
@@ -113,8 +113,8 @@ window._loadResources = function() {
     <!-- 注册表单 -->
     <div id="registerForm" class="login-form">
       <div class="input-group"><input type="tel" id="regPhone" placeholder="手机号" maxlength="11"></div>
-      <div class="input-group" style="position:relative"><input type="password" id="regPassword" placeholder="设置密码（6-12位）" maxlength="12"><span class="pw-toggle" id="regPwToggle">👁</span></div>
-      <div class="input-group" style="position:relative"><input type="password" id="regConfirm" placeholder="确认密码" maxlength="12"></div>
+      <div class="input-group" style="position:relative"><input type="password" id="regPassword" placeholder="设置密码（8-64位，需字母+数字）" maxlength="64"><span class="pw-toggle" id="regPwToggle">👁</span></div>
+      <div class="input-group" style="position:relative"><input type="password" id="regConfirm" placeholder="确认密码" maxlength="64"></div>
       <div class="input-group captcha-group"><input type="text" id="regCaptcha" placeholder="验证码" maxlength="6"><span class="captcha-img" id="regCaptchaImg" style="cursor:pointer">点我刷新</span></div>
       <div class="input-group"><input type="text" id="regInvite" placeholder="邀请码（必填）" maxlength="6"></div>
       <div id="regError" class="form-error"></div>
@@ -593,9 +593,9 @@ window._loadResources = function() {
   <div class="wt-modal-content" style="max-width:340px">
     <div class="wt-modal-header"><h3>修改密码</h3><button class="modal-close btn-close" id="cpModalClose">✕</button></div>
     <div class="wt-modal-body">
-      <div class="input-group"><input type="password" class="form-control" id="cpOldPwd" placeholder="原密码" maxlength="12"></div>
-      <div class="input-group" style="margin-top:.5rem"><input type="password" class="form-control" id="cpNewPwd" placeholder="新密码（6-12位）" maxlength="12"></div>
-      <div class="input-group" style="margin-top:.5rem"><input type="password" class="form-control" id="cpConfirmPwd" placeholder="确认新密码" maxlength="12"></div>
+      <div class="input-group"><input type="password" class="form-control" id="cpOldPwd" placeholder="原密码" maxlength="64"></div>
+      <div class="input-group" style="margin-top:.5rem"><input type="password" class="form-control" id="cpNewPwd" placeholder="新密码（8-64位，需字母+数字）" maxlength="64"></div>
+      <div class="input-group" style="margin-top:.5rem"><input type="password" class="form-control" id="cpConfirmPwd" placeholder="确认新密码" maxlength="64"></div>
       <div id="cpError" class="form-error"></div>
       <button id="cpSaveBtn" class="btn-primary" style="margin-top:.5rem">保存</button>
     </div>

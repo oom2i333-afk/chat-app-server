@@ -375,7 +375,7 @@ async function doLogin() {
   const errEl = document.getElementById('loginError');
 
   if (!phone || !/^1[3-9]\d{9}$/.test(phone)) { errEl.textContent = '请输入有效手机号'; return; }
-  if (!password || password.length < 6) { errEl.textContent = '请输入密码（6-12位）'; return; }
+  if (!password || password.length < 6) { errEl.textContent = '请输入密码（8-64位）'; return; }
 
   const btn = document.getElementById('loginBtn');
   btn.disabled = true; btn.textContent = '登录中...'; errEl.textContent = '';
@@ -430,7 +430,8 @@ async function doRegister() {
   const btn = document.getElementById('registerBtn');
 
   if (!phone || !/^1[3-9]\d{9}$/.test(phone)) { errEl.textContent = '请输入有效手机号'; return; }
-  if (!password || password.length < 6 || password.length > 12) { errEl.textContent = '密码需6-12位'; return; }
+  if (!password || password.length < 8 || password.length > 64) { errEl.textContent = '密码长度需 8-64 位'; return; }
+  if (!/[a-zA-Z]/.test(password)) { errEl.textContent = '密码需包含至少一个字母'; return; }
   if (password !== confirm) { errEl.textContent = '两次密码不一致'; return; }
   if (!captcha) { errEl.textContent = '请输入验证码'; return; }
   if (!inviteCode) { errEl.textContent = '请输入邀请码'; return; }
@@ -1899,7 +1900,8 @@ document.getElementById('cpModalOverlay').onclick=document.getElementById('cpMod
 document.getElementById('cpSaveBtn').addEventListener('click',()=>{
   const o=document.getElementById('cpOldPwd').value,n=document.getElementById('cpNewPwd').value,c=document.getElementById('cpConfirmPwd').value,err=document.getElementById('cpError');
   if(!o){err.textContent='请输入原密码';return;}
-  if(!n||n.length<6||n.length>12){err.textContent='新密码需6-12位';return;}
+  if(!n||n.length<8||n.length>64){err.textContent='新密码需8-64位';return;}
+  if(!/[a-zA-Z]/.test(n)){err.textContent='新密码需包含字母';return;}
   if(n!==c){err.textContent='两次密码不一致';return;}err.textContent='';
   socket.emit('change-password',{oldPassword:o,newPassword:n},(r)=>{if(r.success){showToast('密码已修改');hideBsModal(document.getElementById('changePwdModal'));document.getElementById('cpOldPwd').value='';document.getElementById('cpNewPwd').value='';document.getElementById('cpConfirmPwd').value='';}else err.textContent=r.error||'修改失败';});
 });
