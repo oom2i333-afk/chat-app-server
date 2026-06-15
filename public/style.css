@@ -6,28 +6,50 @@
 /* ─── Reset & Base ──────────────────────────────────────── */
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 :root {
-  --green: #07c160;
-  --green-dark: #06ad56;
-  --green-light: #e8f8ee;
-  --green-bg: #f0faf4;
-  --bg: #f7f7f7;
-  --sidebar-bg: #1e1e1e;
-  --sidebar-bg-alt: #252525;
-  --sidebar-hover: rgba(255,255,255,.05);
-  --sidebar-active: rgba(7,193,96,.12);
-  --text: #191919;
-  --text-secondary: #5a5a5a;
-  --text-muted: #999;
-  --border: #e6e6e6;
-  --border-light: #f0f0f0;
-  --chat-bg: #f5f5f5;
+  /* WhatsApp 配色方案 */
+  --wa-teal: #075E54;
+  --wa-green: #25D366;
+  --wa-green-dark: #1fa855;
+  --wa-green-light: #DCF8C6;
+  --wa-green-bg: #e5fdd6;
+  --wa-bg: #efeae2;
+  --wa-header: #075E54;
+  --wa-header-text: #fff;
+  --wa-sidebar-bg: #fff;
+  --wa-sidebar-header: #075E54;
+  --wa-sidebar-search: #f0f2f5;
+  --wa-hover: rgba(0,0,0,.03);
+  --wa-active: #e8f8ee;
+  --wa-text: #111b21;
+  --wa-text-secondary: #667781;
+  --wa-text-muted: #8696a0;
+  --wa-border: #e9edef;
+  --wa-border-light: #f0f2f5;
+  --wa-chat-bg: #efeae2;
+  --wa-chat-bg-pattern: rgba(0,0,0,.03);
+  --wa-bubble-other: #fff;
+  --wa-bubble-mine: #DCF8C6;
+  --wa-input-bg: #f0f2f5;
+  --wa-input-border: #e0e0e0;
+  --wa-danger: #e74c3c;
+  --wa-warning: #f39c12;
+  --wa-info: #3498db;
+  --wa-shadow-sm: 0 1px 2px rgba(0,0,0,.06);
+  --wa-shadow: 0 2px 8px rgba(0,0,0,.08);
+
+  /* 保持向后兼容 */
+  --green: #25D366;
+  --green-dark: #1fa855;
+  --green-light: #DCF8C6;
+  --bg: #efeae2;
+  --text: #111b21;
+  --text-secondary: #667781;
+  --text-muted: #8696a0;
+  --border: #e9edef;
+  --chat-bg: #efeae2;
   --bubble-other: #fff;
-  --bubble-mine: linear-gradient(135deg,#07c160,#06ad56);
+  --bubble-mine: #DCF8C6;
   --danger: #e74c3c;
-  --warning: #f39c12;
-  --info: #3498db;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.04);
-  --shadow: 0 2px 12px rgba(0,0,0,.06);
   --shadow-lg: 0 8px 32px rgba(0,0,0,.08);
   --shadow-xl: 0 12px 48px rgba(0,0,0,.12);
   --radius: 10px;
@@ -81,73 +103,58 @@ body {
    登录页 — 全新玻璃拟态设计
    ═══════════════════════════════════════════════════════════════ */
 .login-bg {
-  position:fixed; inset:0;
-  background: linear-gradient(145deg, #0a7a0a 0%, #07c160 40%, #2ecc71 70%, #1abc9c 100%);
-  z-index:0;
+  position:fixed; inset:0; z-index:0;
+  background: linear-gradient(160deg, #075E54 0%, #0a7a6a 40%, #128C7E 100%);
 }
 .login-bg-pattern {
   position:absolute; inset:0;
   background-image:
-    radial-gradient(circle at 15% 25%, rgba(255,255,255,.12) 0%, transparent 45%),
-    radial-gradient(circle at 75% 15%, rgba(255,255,255,.07) 0%, transparent 35%),
-    radial-gradient(circle at 45% 75%, rgba(255,255,255,.06) 0%, transparent 40%),
-    radial-gradient(circle at 85% 80%, rgba(255,255,255,.08) 0%, transparent 30%);
-}
-.login-bg::after {
-  content: '';
-  position: absolute; inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    radial-gradient(circle at 20% 30%, rgba(255,255,255,.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255,255,255,.05) 0%, transparent 40%);
 }
 .login-card {
   position:relative; z-index:1;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   width:100%; padding:2rem; min-height:100vh;
 }
-.login-logo { text-align:center; margin-bottom:1.8rem; }
+.login-logo { text-align:center; margin-bottom:1.5rem; }
 .login-logo h1 {
-  font-size:2.2rem; font-weight:800; color:#fff;
-  letter-spacing:-.03em; text-shadow:0 2px 12px rgba(0,0,0,.1);
-  background: linear-gradient(135deg, #fff 60%, rgba(255,255,255,.6));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size:2rem; font-weight:700; color:#fff;
+  letter-spacing:-.02em;
 }
-.login-subtitle { font-size:.85rem; color:rgba(255,255,255,.65); margin-top:.25rem; letter-spacing:.5px; }
+.login-subtitle { font-size:.82rem; color:rgba(255,255,255,.6); margin-top:.2rem; }
 
 .login-form {
   width:100%; max-width:340px;
-  background:rgba(255,255,255,.88);
-  backdrop-filter:blur(20px) saturate(1.4);
-  -webkit-backdrop-filter:blur(20px) saturate(1.4);
-  border-radius:var(--radius-xl);
-  padding:1.8rem 1.5rem;
-  box-shadow:0 8px 40px rgba(0,0,0,.15), 0 0 0 1px rgba(255,255,255,.3);
-  border: 1px solid rgba(255,255,255,.5);
+  background:#fff;
+  border-radius:12px;
+  padding:1.5rem 1.25rem;
+  box-shadow:0 4px 24px rgba(0,0,0,.12);
 }
-.input-group { position:relative; margin-bottom:.6rem; }
+.input-group { position:relative; margin-bottom:.5rem; }
 .input-group input {
-  width:100%; padding:.75rem .9rem;
-  border:1.5px solid #e8e8e8; border-radius:var(--radius);
-  font-size:.92rem; font-family:inherit; outline:none;
-  transition:var(--transition); background:#f7f7f7;
-  color: var(--text);
+  width:100%; padding:.7rem .85rem;
+  border:1.5px solid var(--wa-input-border); border-radius:8px;
+  font-size:.9rem; font-family:inherit; outline:none;
+  transition:border-color .15s; background:var(--wa-input-bg);
+  color: var(--wa-text);
 }
 .input-group input:focus {
-  border-color:var(--green); box-shadow:0 0 0 3px rgba(7,193,96,.1); background:#fff;
+  border-color:var(--wa-green); background:#fff;
 }
-.input-group input::placeholder { color:#bbb; }
+.input-group input::placeholder { color:var(--wa-text-muted); }
 
 .btn-primary {
-  width:100%; margin-top:.4rem; padding:.8rem;
-  border:none; border-radius:var(--radius);
-  background:linear-gradient(135deg,var(--green),var(--green-dark));
-  color:#fff; font-size:.95rem; font-weight:600; cursor:pointer;
-  font-family:inherit; transition:var(--transition);
-  letter-spacing:2px;
+  width:100%; margin-top:.3rem; padding:.75rem;
+  border:none; border-radius:8px;
+  background:var(--wa-green);
+  color:#fff; font-size:.9rem; font-weight:600; cursor:pointer;
+  font-family:inherit; transition:opacity .15s;
+  letter-spacing:1px;
 }
-.btn-primary:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(7,193,96,.35); }
-.btn-primary:active { transform:translateY(0); }
-.btn-primary:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+.btn-primary:hover { opacity:.9; }
+.btn-primary:active { opacity:.8; }
+.btn-primary:disabled { opacity:.4; cursor:not-allowed; }
 
 .login-tip { font-size:.72rem; color:#aaa; text-align:center; margin-top:.8rem; line-height:1.5; }
 .login-tip a { color:var(--green); text-decoration:none; }
@@ -1086,4 +1093,160 @@ body {
 /* ─── Responsive desktop fix ──────────────────────────── */
 @media (min-width:769px) {
   .sidebar::after { display:block; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   WhatsApp 风格覆盖
+   在保持功能完整的前提下，将视觉改为 WhatsApp 方向
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── 侧栏重设计 ──────────────────────────────────────── */
+.search-box {
+  padding:.4rem .8rem;
+  background:var(--wa-sidebar-search);
+}
+.search-box input {
+  background:#fff; color:var(--wa-text);
+  border:1px solid var(--wa-input-border); padding:.4rem .75rem .4rem 2rem;
+  border-radius:8px;
+}
+.search-box input::placeholder { color:var(--wa-text-muted); }
+.search-box input:focus { border-color:var(--wa-green); background:#fff; color:var(--wa-text); }
+.search-icon { color:var(--wa-text-muted); }
+
+.tabs {
+  background:var(--wa-sidebar-bg);
+  border-bottom:1px solid var(--wa-border);
+  padding:0;
+}
+.tab {
+  color:var(--wa-text-secondary); font-size:.78rem; padding:.5rem .3rem;
+  border-bottom:2px solid transparent;
+}
+.tab:hover { color:var(--wa-text); background:var(--wa-hover); }
+.tab.active {
+  color:var(--wa-teal); background:transparent; font-weight:600;
+  border-bottom-color:var(--wa-teal);
+}
+
+.chat-item, .contact-item {
+  border-bottom:1px solid var(--wa-border-light);
+  padding:.6rem .8rem;
+}
+.chat-item:hover, .contact-item:hover { background:var(--wa-hover); }
+.chat-item.active { background:var(--wa-active); }
+.chat-item.active::before { background:var(--wa-teal); }
+
+.avatar { border-radius:50%; width:42px; height:42px; }
+.avatar img { border-radius:50%; }
+.avatar .online-dot { border-color:var(--wa-sidebar-bg); }
+
+/* ─── 聊天窗口重设计 ──────────────────────────────────── */
+.chat-header {
+  background:var(--wa-header) !important;
+  color:var(--wa-header-text) !important;
+  border-bottom:1px solid rgba(0,0,0,.08);
+}
+.chat-header button {
+  color:rgba(255,255,255,.8) !important;
+}
+.chat-header button:hover { color:#fff !important; }
+
+.messages-container {
+  background:var(--wa-chat-bg);
+  background-image: repeating-linear-gradient(
+    0deg, transparent, transparent 40px,
+    var(--wa-chat-bg-pattern) 40px, var(--wa-chat-bg-pattern) 41px
+  );
+}
+
+.message-bubble {
+  border-radius:10px !important;
+  box-shadow:0 1px 2px rgba(0,0,0,.04) !important;
+  padding:.5rem .75rem !important;
+}
+.message-row.other .message-bubble {
+  background:var(--wa-bubble-other) !important;
+  border-bottom-left-radius:4px !important;
+}
+.message-row.mine .message-bubble {
+  background:var(--wa-bubble-mine) !important;
+  border-bottom-right-radius:4px !important;
+  color:var(--wa-text) !important;
+}
+
+/* ─── 聊天列头像圆形 ──────────────────────────────────── */
+.chat-item .avatar, .contact-item .avatar { border-radius:50%; }
+
+/* ─── 输入区重设计 ────────────────────────────────────── */
+.input-area {
+  background:var(--wa-sidebar-search) !important;
+  padding:.5rem .65rem !important;
+  border-top:1px solid var(--wa-border) !important;
+}
+.input-wrapper {
+  border-radius:24px !important;
+  background:#fff !important;
+  border:1px solid var(--wa-input-border) !important;
+}
+.input-wrapper input {
+  padding:.5rem .85rem !important;
+  font-size:.88rem !important;
+}
+.input-action-btn { color:var(--wa-text-secondary) !important; font-size:1.1rem !important; }
+.input-action-btn:hover { color:var(--wa-teal) !important; background:rgba(0,0,0,.04) !important; }
+
+.send-btn {
+  border-radius:24px !important;
+  padding:.4rem .9rem !important;
+  font-size:.82rem !important;
+}
+
+/* ─── Tooltip 提示 ────────────────────────────────────── */
+[title]:hover::after {
+  content:attr(title);
+  position:absolute; bottom:calc(100% + 6px); left:50%;
+  transform:translateX(-50%);
+  background:#333; color:#fff; font-size:.68rem;
+  padding:3px 8px; border-radius:6px;
+  white-space:nowrap; z-index:300;
+  pointer-events:none;
+}
+.header-btn, .input-action-btn, .send-btn { position:relative; }
+
+/* ─── 未读消息徽章 ────────────────────────────────────── */
+.chat-item .unread-badge { background:var(--wa-green); }
+
+/* ─── 通话按钮样式 ────────────────────────────────────── */
+.call-btn {
+  display:inline-flex; align-items:center; gap:.3rem;
+  padding:.3rem .6rem; border:none; border-radius:6px;
+  background:rgba(255,255,255,.15); color:rgba(255,255,255,.85); cursor:pointer;
+  font-size:.75rem; font-family:inherit; transition:opacity .15s;
+}
+.call-btn:hover { opacity:.8; }
+.call-btn i { font-size:.85rem; }
+
+/* ─── 移动端适配 ──────────────────────────────────────── */
+@media (max-width:768px) {
+  .sidebar { width:100%; border-right:none; }
+  .chat-window { display:none; }
+  .chat-window.active { display:flex; position:fixed; inset:0; z-index:100; }
+  .chat-window.active .chat-header { padding-top:env(safe-area-inset-top,0); }
+  .page.active { flex-direction:column; }
+  .login-card { padding:1rem; }
+  .login-form { max-width:100%; box-shadow:none; }
+}
+@media (max-width:480px) {
+  .chat-item { padding:.5rem .65rem; }
+  .avatar { width:36px; height:36px; font-size:.78rem; }
+  .message-bubble { font-size:.85rem; max-width:85% !important; }
+  .profile-name { font-size:.82rem; }
+  .header-btn { width:28px; height:28px; font-size:.8rem; }
+}
+
+/* ─── iOS safe-area ───────────────────────────────────── */
+@supports (padding-top:env(safe-area-inset-top)) {
+  .sidebar-profile { padding-top:calc(.6rem + env(safe-area-inset-top)); }
+  .chat-header { padding-top:calc(.6rem + env(safe-area-inset-top)) !important; }
 }

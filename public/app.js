@@ -1896,6 +1896,28 @@ function showImagePreview(src) {
 }
 window.showImagePreview = showImagePreview;
 
+// ─── Call buttons ─────────────────────────────────────────
+const chatVoiceCallBtn = document.getElementById('chatVoiceCallBtn');
+const chatVideoCallBtn = document.getElementById('chatVideoCallBtn');
+
+chatVoiceCallBtn?.addEventListener('click', () => {
+  if (!activeChat || activeChat.startsWith('g_')) { showToast('暂不支持群聊通话', 1500, 'warning'); return; }
+  if (typeof window.WeTalkCall?.voiceCall === 'function') {
+    window.WeTalkCall.voiceCall(activeChat);
+  } else {
+    showToast('通话模块加载中，请稍后再试', 2000, 'warning');
+  }
+});
+
+chatVideoCallBtn?.addEventListener('click', () => {
+  if (!activeChat || activeChat.startsWith('g_')) { showToast('暂不支持群聊通话', 1500, 'warning'); return; }
+  if (typeof window.WeTalkCall?.videoCall === 'function') {
+    window.WeTalkCall.videoCall(activeChat);
+  } else {
+    showToast('通话模块加载中，请稍后再试', 2000, 'warning');
+  }
+});
+
 // ─── Message search ────────────────────────────────────────
 chatSearchBtn?.addEventListener('click', () => {
   if (!activeChat) { showToast('请先打开一个聊天', 1500, 'warning'); return; }
@@ -2728,5 +2750,25 @@ updateSendBtn();
 document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
 function showBsModal(el) { bootstrap.Modal.getOrCreateInstance(el).show(); }
 function hideBsModal(el) { const m = bootstrap.Modal.getInstance(el); if (m) m.hide(); }
+
+// ─── 首次使用引导 ────────────────────────────────────────
+(function showFirstTimeGuide() {
+  try {
+    if (localStorage.getItem('wetalk_guide_shown')) return;
+    // Show guide after a short delay when entering main page
+    const observer = new MutationObserver(() => {
+      if (mainPage?.classList.contains('active') && !localStorage.getItem('wetalk_guide_shown')) {
+        localStorage.setItem('wetalk_guide_shown', '1');
+        setTimeout(() => {
+          showToast('💬 点击联系人开始聊天', 3000);
+          setTimeout(() => showToast('🎤 长按麦克风发语音消息', 3000), 3500);
+          setTimeout(() => showToast('📞 顶栏可拨打语音/视频通话', 3000), 7000);
+        }, 1000);
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  } catch (e) { /* ignore */ }
+})();
 
 console.log('💚 WeTalk v2.0 已加载');
