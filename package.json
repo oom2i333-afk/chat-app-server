@@ -1,6 +1,6 @@
 {
   "name": "chat-app",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "类微信聊天软件 - 手机验证/实名/红包/已读/撤回",
   "main": "server.js",
   "scripts": {
@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "compression": "^1.8.1",
     "express": "^5.2.1",
     "helmet": "^8.2.0",
     "multer": "^1.4.5-lts.2",

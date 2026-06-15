@@ -8,6 +8,8 @@ const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const helmet = require('helmet');
+const compression = require('compression');
+const os = require('os');
 
 const app = express();
 const server = http.createServer(app);
@@ -129,10 +131,30 @@ function stripNonText(s) {
   return s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 }
 
+// ─── HTTP 压缩 ────────────────────────────────────────────
+app.use(compression({ level: 6, threshold: 512 }));
+
+// ─── 请求日志 ──────────────────────────────────────────────
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[${new Date().toISOString()}] ${res.statusCode} ${req.method} ${req.originalUrl} ${duration}ms`);
+  });
+  next();
+});
+
 // ─── 静态文件 ──────────────────────────────────────────────
 app.use(express.json({ limit: '5mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: process.env.NODE_ENV === 'production' ? '7d' : 0,
+  etag: true,
+  lastModified: true,
+}));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  maxAge: '1d',
+  etag: true,
+}));
 
 // ─── 头像上传配置 ──────────────────────────────────────────
 const uploadsDir = path.join(__dirname, 'uploads', 'avatars');
@@ -161,6 +183,21 @@ const upload = multer({
     const extOk = ALLOWED_EXTENSIONS.includes(ext);
     cb(null, mimeOk && extOk);
   },
+});
+
+// ─── 健康检查 ─────────────────────────────────────────────
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    users: users.size,
+    messages: messages.size,
+    groups: groups.size,
+    memory: process.memoryUsage().rss,
+    node: process.version,
+    platform: process.platform,
+    timestamp: Date.now(),
+  });
 });
 
 // ─── 管理员配置 ────────────────────────────────────────────
@@ -1828,6 +1865,28 @@ app.get('/api/notifications/check', (req, res) => {
   res.json({ hasNew: false, count: 0 });
 });
 
+// ─── Graceful shutdown ──────────────────────────
+function shutdown(signal) {
+  console.log(`\n[退出] 收到 ${signal}，正在保存数据...`);
+  clearInterval(saveTimer);
+  saveData();
+  setTimeout(() => {
+    console.log('[退出] 关闭服务器...');
+    server.close(() => {
+      console.log('[退出] 服务器已关闭，再见！');
+      process.exit(0);
+    });
+  }, 2000);
+  // Force exit after 10s regardless
+  setTimeout(() => {
+    console.error('[退出] 强制退出');
+    process.exit(1);
+  }, 10000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
 // Periodic save every 60 seconds
 let saveTimer = setInterval(saveData, 60000);
 
@@ -1836,10 +1895,12 @@ loadData();
 
 // ─── Start server ──────────────────────────
 server.listen(PORT, '0.0.0.0', () => {
+  const memMB = Math.round(process.memoryUsage().rss / 1024 / 1024);
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   console.log(`  💬 WeTalk v2.0 已启动`);
   console.log(`  📍 http://localhost:${PORT}`);
   console.log(`  🌐 局域网: http://${getLocalIP()}:${PORT}`);
+  console.log(`  🖥️  Node ${process.version} | ${os.platform()} | RSS ${memMB}MB`);
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 });
 
@@ -1850,7 +1911,7 @@ function getLocalIP() {
 
 function getLocalIPs() {
   const result = [];
-  const nets = require('os').networkInterfaces();
+  const nets = os.networkInterfaces();
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]) {
       if (net.family === 'IPv4' && !net.internal) result.push(net.address);
