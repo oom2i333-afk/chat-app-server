@@ -58,8 +58,8 @@
   }
 </script>
 <title>WeTalk - 畅聊</title>
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="webrtc.css">
+<link rel="stylesheet" href="style.css?v=2.1">
+<link rel="stylesheet" href="webrtc.css?v=2.1">
 <!-- Bootstrap + 图标 CSS 登录成功后才加载 -->
 <script>
 window._loadResources = function() {
@@ -77,7 +77,7 @@ window._loadResources = function() {
   bj.defer = true; document.body.appendChild(bj);
   // webrtc.js
   var wj = document.createElement('script');
-  wj.src = 'webrtc.js'; document.body.appendChild(wj);
+  wj.src = 'webrtc.js?v=2.1'; document.body.appendChild(wj);
 };
 </script>
 </head>
@@ -608,6 +608,6 @@ window._loadResources = function() {
 <div id="toastContainer" class="wt-toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/socket.io@4.8.3/client-dist/socket.io.min.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=2.1"></script>
 </body>
 </html>

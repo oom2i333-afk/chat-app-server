@@ -1,9 +1,9 @@
-// WeTalk - Service Worker v5.0
-// Cache-first for static assets, network-first for API, offline fallback page
+// WeTalk - Service Worker v6.0
+// Network-first for JS/CSS (cache-busting with version query), cache-first for images/fonts, offline fallback
 
-const CACHE_NAME = 'wetalk-v5';
-const STATIC_CACHE = 'wetalk-static-v5';
-const DYNAMIC_CACHE = 'wetalk-dynamic-v5';
+const CACHE_NAME = 'wetalk-v6';
+const STATIC_CACHE = 'wetalk-static-v6';
+const DYNAMIC_CACHE = 'wetalk-dynamic-v6';
 const OFFLINE_PAGE = '/offline.html';
 
 const STATIC_ASSETS = [
@@ -159,7 +159,23 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // 静态资源 — 缓存优先，网络更新
+  // 脚本和样式 — 网络优先，缓存后备（防止新旧代码混用）
+  if (request.destination === 'script' || request.destination === 'style' || url.pathname.match(/\.(js|css)($|\?)/)) {
+    e.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) cacheWithLimit(DYNAMIC_CACHE, request, response);
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          return cached || new Response('', { status: 503 });
+        })
+    );
+    return;
+  }
+
+  // 静态资源 (图片、字体等) — 缓存优先，网络更新
   if (CACHE_EXTENSIONS.some((ext) => url.pathname.endsWith(ext))) {
     e.respondWith(
       caches.match(request).then((cached) => {
