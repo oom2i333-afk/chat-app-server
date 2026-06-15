@@ -52,6 +52,31 @@ body {
 .page.active { display:flex; }
 @keyframes pageIn { from{opacity:0} to{opacity:1} }
 
+/* ─── Loading overlay ──────────────────────────────────── */
+.loading-overlay {
+  position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,.45);
+  display:flex; align-items:center; justify-content:center;
+  backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+}
+.loading-spinner {
+  background:#fff; border-radius:16px;
+  padding:2rem 2.5rem;
+  text-align:center;
+  box-shadow:0 8px 40px rgba(0,0,0,.2);
+  animation:spinnerIn .25s ease-out;
+}
+.spinner {
+  width:36px; height:36px; margin:0 auto .8rem;
+  border:3px solid #e8e8e8;
+  border-top-color:var(--green);
+  border-radius:50%;
+  animation:spin .6s linear infinite;
+}
+.loading-spinner p { font-size:.85rem; color:#666; }
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes spinnerIn { from{opacity:0;transform:scale(.9)} to{opacity:1;transform:scale(1)} }
+
 /* ═══════════════════════════════════════════════════════════════
    登录页 — 全新玻璃拟态设计
    ═══════════════════════════════════════════════════════════════ */

@@ -4,3 +4,9 @@ npm-debug.log
 *.local
 dist/
 out/
+data/
+compressed.html
+public/clear-cache.html
+public/test.html
+test-browser.js
+test-lazy.js

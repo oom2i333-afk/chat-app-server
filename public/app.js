@@ -15,19 +15,26 @@ window.addEventListener('unhandledrejection', e => {
 
 // ─── Socket.io（登录成功后才连接） ──────────────────────
 let socket = null;
+let socketConnectResolve = null;   // 供 await socket 连接用
 
-function connectSocket(callback) {
-  if (socket && socket.connected) {
-    if (callback) setTimeout(callback, 50);
-    return;
-  }
-  if (typeof io === 'undefined') {
-    console.warn('[Socket] socket.io 库未加载');
-    if (callback) setTimeout(callback, 50);
-    return;
-  }
-  initSocket();
-  if (callback) setTimeout(callback, 1000); // 等 socket 连接就绪（给 WebSocket 握手时间）
+function connectSocket() {
+  return new Promise((resolve) => {
+    if (socket && socket.connected) { resolve(true); return; }
+    if (typeof io === 'undefined') {
+      console.warn('[Socket] socket.io 库未加载');
+      resolve(false);
+      return;
+    }
+    socketConnectResolve = resolve;
+    initSocket();
+    // 超时保护：5 秒后无论是否连上都 resolve
+    setTimeout(() => {
+      if (socketConnectResolve) {
+        socketConnectResolve(socket && socket.connected);
+        socketConnectResolve = null;
+      }
+    }, 5000);
+  });
 }
 
 function initSocket() {
@@ -37,6 +44,13 @@ function initSocket() {
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     timeout: 10000,
+  });
+  socket.on('connect', () => {
+    console.log('[Socket] 已连接');
+    if (socketConnectResolve) {
+      socketConnectResolve(true);
+      socketConnectResolve = null;
+    }
   });
   socket.on('connect_error', (err) => {
     console.warn('[Socket] 连接失败:', err.message);
@@ -82,9 +96,6 @@ function safeOn(id, event, handler) {
 // 登录页
 const loginPage = $('loginPage');
 const mainPage = $('mainPage');
-const phoneInput = $('phoneInput');
-const codeInput = $('codeInput');
-const sendCodeBtn = $('sendCodeBtn');
 const loginBtn = $('loginBtn');
 
 // 侧栏
@@ -314,33 +325,28 @@ document.querySelectorAll('.pw-toggle').forEach(el => {
   });
 });
 
-// ─── Captcha 刷新 ────────────────────────────────────────
-let currentCaptchaId = '';
+// ─── Captcha 刷新（仅注册需要） ──────────────────────────
 let currentRegCaptchaId = '';
 
-async function refreshCaptcha(imgEl, isLogin) {
+async function refreshCaptcha(imgEl) {
   try {
     const res = await fetch('/api/captcha', { method: 'POST' });
     const data = await res.json();
     if (data.success) {
       imgEl.textContent = data.code;
-      if (isLogin) currentCaptchaId = data.captchaId;
-      else currentRegCaptchaId = data.captchaId;
+      currentRegCaptchaId = data.captchaId;
     }
   } catch(e) { /* ignore */ }
 }
 
-document.getElementById('loginCaptchaImg').addEventListener('click', function() { refreshCaptcha(this, true); });
-document.getElementById('regCaptchaImg').addEventListener('click', function() { refreshCaptcha(this, false); });
+safeOn('regCaptchaImg', 'click', function() { refreshCaptcha(this); });
 
-// ─── 初始加载验证码 ──────────────────────────────────────
-refreshCaptcha(document.getElementById('loginCaptchaImg'), true);
-refreshCaptcha(document.getElementById('regCaptchaImg'), false);
+// ─── 初始加载注册验证码 ─────────────────────────────────
+setTimeout(() => refreshCaptcha(document.getElementById('regCaptchaImg')), 100);
 
 // ─── 键盘事件 ────────────────────────────────────────────
 safeOn('loginPhone', 'keydown', e => { if (e.key === 'Enter') document.getElementById('loginPassword')?.focus(); });
 safeOn('loginPassword', 'keydown', e => { if (e.key === 'Enter') doLogin(); });
-safeOn('loginCaptcha', 'keydown', e => { if (e.key === 'Enter') doLogin(); });
 safeOn('regPhone', 'keydown', e => { if (e.key === 'Enter') document.getElementById('regPassword')?.focus(); });
 safeOn('regPassword', 'keydown', e => { if (e.key === 'Enter') document.getElementById('regConfirm')?.focus(); });
 safeOn('regConfirm', 'keydown', e => { if (e.key === 'Enter') document.getElementById('regCaptcha')?.focus(); });
@@ -350,18 +356,29 @@ safeOn('regInvite', 'keydown', e => { if (e.key === 'Enter') doRegister(); });
 safeOn('loginBtn', 'click', doLogin);
 safeOn('registerBtn', 'click', doRegister);
 
+// ─── Loading 遮罩 ────────────────────────────────────────
+function showLoading(text) {
+  const overlay = document.getElementById('loadingOverlay');
+  if (!overlay) return;
+  document.getElementById('loadingText').textContent = text || '加载中...';
+  overlay.style.display = 'flex';
+}
+function hideLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
 // ─── 登录 ────────────────────────────────────────────────
 async function doLogin() {
   const phone = document.getElementById('loginPhone').value.trim();
   const password = document.getElementById('loginPassword').value;
-  const captcha = document.getElementById('loginCaptcha').value.trim();
   const errEl = document.getElementById('loginError');
 
   if (!phone || !/^1[3-9]\d{9}$/.test(phone)) { errEl.textContent = '请输入有效手机号'; return; }
   if (!password || password.length < 6) { errEl.textContent = '请输入密码（6-12位）'; return; }
-  if (!captcha) { errEl.textContent = '请输入验证码'; return; }
 
-  loginBtn.disabled = true; loginBtn.textContent = '登录中...'; errEl.textContent = '';
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = '登录中...'; errEl.textContent = '';
 
   try {
     const res = await fetch('/api/login', {
@@ -369,15 +386,37 @@ async function doLogin() {
       body: JSON.stringify({ phone, password }),
     });
     const data = await res.json();
-    if (!data.success) { errEl.textContent = data.error || '登录失败'; loginBtn.disabled = false; loginBtn.textContent = '登 录'; refreshCaptcha(document.getElementById('loginCaptchaImg'), true); return; }
+    if (!data.success) {
+      errEl.textContent = data.error || '登录失败';
+      btn.disabled = false; btn.textContent = '登 录';
+      return;
+    }
 
     currentUser = data.user;
-    if (data.needProfile) { showProfilePage(); loginBtn.disabled = false; loginBtn.textContent = '登 录'; return; }
-    // 登录成功后才加载 Bootstrap、图标、webrtc 等外部资源
+
+    // 需要完善资料
+    if (data.needProfile) {
+      showProfilePage();
+      btn.disabled = false; btn.textContent = '登 录';
+      return;
+    }
+
+    // 登录成功 → 显示加载遮罩，加载资源，进入主界面
+    showLoading('正在进入...');
     if (window._loadResources) _loadResources();
     enterMain();
+    const connected = await connectSocket();
+    if (!connected) {
+      console.warn('[Socket] 未连上，进入离线模式');
+    }
+    btn.disabled = false; btn.textContent = '登 录';
+    hideLoading();
     goOnline();
-  } catch (e) { errEl.textContent = '网络错误'; loginBtn.disabled = false; loginBtn.textContent = '登 录'; }
+  } catch (e) {
+    errEl.textContent = '网络错误，请检查连接';
+    btn.disabled = false; btn.textContent = '登 录';
+    hideLoading();
+  }
 }
 
 // ─── 注册 ────────────────────────────────────────────────
@@ -404,20 +443,30 @@ async function doRegister() {
       body: JSON.stringify({ phone, password, captchaId: currentRegCaptchaId, captcha, inviteCode }),
     });
     const data = await res.json();
-    if (!data.success) { errEl.textContent = data.error || '注册失败'; btn.disabled = false; btn.textContent = '注 册'; refreshCaptcha(document.getElementById('regCaptchaImg'), false); return; }
+    if (!data.success) {
+      errEl.textContent = data.error || '注册失败';
+      btn.disabled = false; btn.textContent = '注 册';
+      refreshCaptcha(document.getElementById('regCaptchaImg'));
+      return;
+    }
 
-    // 自动填入登录
+    // 自动填入登录并切换到登录页
     document.getElementById('loginPhone').value = phone;
     document.getElementById('loginPassword').value = password;
     document.querySelector('[data-tab="login"]').click();
-    document.getElementById('loginError').textContent = '注册成功，请登录';
+    errEl.textContent = '';
+    document.getElementById('loginError').textContent = '✅ 注册成功，请登录';
     document.getElementById('loginError').style.color = 'var(--green)';
     btn.disabled = false; btn.textContent = '注 册';
+
     if (data.needProfile) {
       currentUser = { id: data.userId, phone };
       showProfilePage();
     }
-  } catch (e) { errEl.textContent = '网络错误'; btn.disabled = false; btn.textContent = '注 册'; }
+  } catch (e) {
+    errEl.textContent = '网络错误，请重试';
+    btn.disabled = false; btn.textContent = '注 册';
+  }
 }
 
 // ─── 完善资料页 ──────────────────────────────────────────
@@ -456,80 +505,86 @@ document.getElementById('setupAvatarInput').addEventListener('change', (e) => {
   reader.readAsDataURL(file);
 });
 
-document.getElementById('setupCompleteBtn').addEventListener('click', () => {
+document.getElementById('setupCompleteBtn').addEventListener('click', async () => {
   const btn = document.getElementById('setupCompleteBtn');
   const name = document.getElementById('setupName').value.trim() || `用户${(currentUser?.phone||'').slice(-4)}`;
   btn.disabled = true; btn.textContent = '处理中...';
   document.getElementById('setupError').textContent = '';
 
   // 先连接 socket
-  connectSocket(() => {
-    if (!socket) {
+  showLoading('正在连接...');
+  const connected = await connectSocket();
+  if (!connected) {
+    document.getElementById('setupError').textContent = '连接服务器失败，请重试';
+    btn.disabled = false; btn.textContent = '进入 WeTalk';
+    hideLoading();
+    return;
+  }
+  hideLoading();
+
+  // 再上线获取数据
+  socket.emit('user-online', currentUser.id, (onlineRes) => {
+    if (!onlineRes.success) {
       document.getElementById('setupError').textContent = '连接服务器失败，请重试';
       btn.disabled = false; btn.textContent = '进入 WeTalk'; return;
     }
-    // 再上线获取数据
-    socket.emit('user-online', currentUser.id, (onlineRes) => {
-      if (!onlineRes.success) {
-        document.getElementById('setupError').textContent = '连接服务器失败，请重试';
-        btn.disabled = false; btn.textContent = '进入 WeTalk'; return;
-      }
-      // 再保存资料
-      socket.emit('complete-profile', {
-        userId: currentUser.id, name, gender: selectedGender, avatar: setupAvatarDataUrl,
-      }, (res) => {
-        if (res.success) {
-          currentUser = res.user;
-          document.getElementById('profilePage').classList.remove('active');
-          loginPage.classList.remove('active');
-          mainPage.classList.add('active');
-          updateProfileUI();
-          contacts = new Map();
-          onlineRes.users.forEach(u => contacts.set(u.id, u));
-          onlineRes.chats?.forEach(c => { if (c.with && !contacts.has(c.with.id)) contacts.set(c.with.id, c.with); });
-          renderContactList(); renderChatList();
-          if (onlineRes.chats?.length > 0) {
-            openChat(onlineRes.chats[0].with.id);
-            socket.emit('get-messages', { with: onlineRes.chats[0].with.id }, (msgs) => {
-              messageCache.set(getChatId(currentUser.id, onlineRes.chats[0].with.id), msgs || []);
-              renderMessages(); scrollToBottom();
-            });
-          }
-        } else {
-          document.getElementById('setupError').textContent = res.error || '保存失败';
-          btn.disabled = false; btn.textContent = '进入 WeTalk';
+    // 再保存资料
+    socket.emit('complete-profile', {
+      userId: currentUser.id, name, gender: selectedGender, avatar: setupAvatarDataUrl,
+    }, (res) => {
+      if (res.success) {
+        currentUser = res.user;
+        document.getElementById('profilePage').classList.remove('active');
+        loginPage.classList.remove('active');
+        mainPage.classList.add('active');
+        updateProfileUI();
+        contacts = new Map();
+        onlineRes.users.forEach(u => contacts.set(u.id, u));
+        onlineRes.chats?.forEach(c => { if (c.with && !contacts.has(c.with.id)) contacts.set(c.with.id, c.with); });
+        renderContactList(); renderChatList();
+        if (onlineRes.chats?.length > 0) {
+          openChat(onlineRes.chats[0].with.id);
+          socket.emit('get-messages', { with: onlineRes.chats[0].with.id }, (msgs) => {
+            messageCache.set(getChatId(currentUser.id, onlineRes.chats[0].with.id), msgs || []);
+            renderMessages(); scrollToBottom();
+          });
         }
-      });
+      } else {
+        document.getElementById('setupError').textContent = res.error || '保存失败';
+        btn.disabled = false; btn.textContent = '进入 WeTalk';
+      }
     });
   });
 });
 
 // ─── 登录后上线 ──────────────────────────────────────────
-function goOnline() {
-  connectSocket(() => {
-    if (!socket) return;
-    socket.emit('user-online', currentUser.id, (res) => {
-      if (!res.success) return;
-      currentUser = res.user;
-      contacts = new Map();
-      res.users.forEach(u => contacts.set(u.id, u));
-      res.chats?.forEach(c => { if (c.with && !contacts.has(c.with.id)) contacts.set(c.with.id, c.with); });
-      updateProfileUI();
-      renderContactList();
-      renderChatList();
-      loadFriends();
-      if (res.chats?.length > 0) {
-        openChat(res.chats[0].with.id);
-        socket.emit('get-messages', { with: res.chats[0].with.id }, (msgs) => {
-          const chatId = getChatId(currentUser.id, res.chats[0].with.id);
-          messageCache.set(chatId, msgs || []);
-          renderMessages(); scrollToBottom();
-        });
-      }
-    });
-    // 登录完成后订阅推送通知
-    setTimeout(subscribePushNotifications, 1500);
+async function goOnline() {
+  const connected = await connectSocket();
+  if (!socket || !connected) {
+    console.warn('[GoOnline] Socket 未连接，跳过上线');
+    return;
+  }
+  socket.emit('user-online', currentUser.id, (res) => {
+    if (!res || !res.success) return;
+    currentUser = res.user;
+    contacts = new Map();
+    res.users.forEach(u => contacts.set(u.id, u));
+    res.chats?.forEach(c => { if (c.with && !contacts.has(c.with.id)) contacts.set(c.with.id, c.with); });
+    updateProfileUI();
+    renderContactList();
+    renderChatList();
+    loadFriends();
+    if (res.chats?.length > 0) {
+      openChat(res.chats[0].with.id);
+      socket.emit('get-messages', { with: res.chats[0].with.id }, (msgs) => {
+        const chatId = getChatId(currentUser.id, res.chats[0].with.id);
+        messageCache.set(chatId, msgs || []);
+        renderMessages(); scrollToBottom();
+      });
+    }
   });
+  // 登录完成后订阅推送通知
+  setTimeout(subscribePushNotifications, 1500);
 }
 
 function enterMain() {
