@@ -1495,6 +1495,30 @@ function renderMessageHtml(m, chatPartner, isGroup) {
       </div>`;
   }
 
+  // 语音消息
+  if (m.type === 'voice') {
+    const statusIcon = isMine ? getStatusSvg(m.status) : '';
+    const dur = m.duration || 0;
+    const durStr = `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`;
+    const audioUrl = m.text || '';
+    return `
+      <div class="message-row ${isMine ? 'mine' : 'other'}" data-msg-id="${m.id}" data-chat-id="${getChatId(currentUser.id, activeChat)}">
+        <div class="message-avatar" style="background:${avatarBg}">${avatarHtml}</div>
+        <div class="message-body">
+          ${senderName ? `<div style="font-size:.7rem;color:#888;margin-bottom:1px;padding-left:2px">${escapeHtml(senderName)}</div>` : ''}
+          <div class="voice-bubble ${isMine ? 'mine' : 'other'}" data-url="${audioUrl}" data-msg-id="${m.id}" data-playing="false">
+            <i class="bi bi-play-fill voice-play-icon"></i>
+            <span class="voice-duration">${durStr}</span>
+            <span class="voice-unread-dot" style="${m.status === 'sent' && !isMine ? '' : 'display:none'}"></span>
+          </div>
+          <div class="message-footer">
+            <span class="message-time">${timeStr}</span>
+            ${statusIcon}
+          </div>
+        </div>
+      </div>`;
+  }
+
   // 普通文本消息
   const statusIcon = isMine ? getStatusSvg(m.status) : '';
   return `
@@ -1528,7 +1552,7 @@ function getStatusSvg(status) {
 
 function canRecall(msg) {
   if (msg.from !== currentUser.id) return false;
-  if (msg.type !== 'text' && msg.type !== 'image') return false;
+  if (msg.type !== 'text' && msg.type !== 'image' && msg.type !== 'voice') return false;
   return (Date.now() - msg.time) < 180000; // 3分钟
 }
 
@@ -1601,6 +1625,259 @@ imageInput?.addEventListener('change', (e) => {
   };
   reader.readAsDataURL(file);
   imageInput.value = '';
+});
+
+// ═══════════════════════════════════════════════════════════════
+// 语音消息 — 录制
+// ═══════════════════════════════════════════════════════════════
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingStartTime = 0;
+let recordingTimerInterval = null;
+let isRecording = false;
+
+const voiceBtn = document.getElementById('voiceBtn');
+const recordingOverlay = document.getElementById('recordingOverlay');
+const recordingTimer = document.getElementById('recordingTimer');
+const voicePlayer = document.getElementById('voicePlayer');
+
+// Start recording
+async function startRecording() {
+  if (!activeChat) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Prefer webm opus, fallback to any supported type
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : 'audio/ogg;codecs=opus';
+
+    mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+    audioChunks = [];
+    recordingStartTime = Date.now();
+    isRecording = true;
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      isRecording = false;
+      stream.getTracks().forEach(t => t.stop());
+      const duration = Math.round((Date.now() - recordingStartTime) / 1000);
+      if (duration < 1) {
+        showToast('录音时间太短', 1500, 'error');
+        return;
+      }
+      sendVoiceMessage(audioChunks, duration);
+    };
+
+    mediaRecorder.onerror = () => {
+      isRecording = false;
+      stream.getTracks().forEach(t => t.stop());
+      showToast('录音失败', 1500, 'error');
+    };
+
+    mediaRecorder.start(100); // Collect data every 100ms
+    showRecordingUI();
+  } catch (e) {
+    if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+      showToast('请允许麦克风权限', 2000, 'error');
+    } else {
+      showToast('无法启动录音', 2000, 'error');
+    }
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  hideRecordingUI();
+}
+
+function cancelRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+    audioChunks = [];
+  }
+  hideRecordingUI();
+}
+
+function showRecordingUI() {
+  if (recordingOverlay) recordingOverlay.style.display = 'flex';
+  voiceBtn?.classList.add('recording');
+  startRecordingTimer();
+}
+
+function hideRecordingUI() {
+  if (recordingOverlay) recordingOverlay.style.display = 'none';
+  voiceBtn?.classList.remove('recording');
+  stopRecordingTimer();
+}
+
+function startRecordingTimer() {
+  stopRecordingTimer();
+  recordingTimerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+    recordingTimer.textContent = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`;
+    if (elapsed >= 60) stopRecording(); // max 60s
+  }, 200);
+}
+
+function stopRecordingTimer() {
+  if (recordingTimerInterval) {
+    clearInterval(recordingTimerInterval);
+    recordingTimerInterval = null;
+  }
+  recordingTimer.textContent = '0:00';
+}
+
+function sendVoiceMessage(chunks, duration) {
+  const blob = new Blob(chunks, { type: mediaRecorder?.mimeType || 'audio/webm' });
+  if (blob.size < 100) return; // Too small
+  if (blob.size > 2 * 1024 * 1024) {
+    showToast('语音消息不能超过 2MB', 2000, 'error');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const dataUrl = ev.target.result;
+    socket.emit('send-voice', { to: activeChat, dataUrl, duration }, (msg) => {
+      if (msg && !msg.error) {
+        const chatId = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
+        if (!messageCache.has(chatId)) messageCache.set(chatId, []);
+        messageCache.get(chatId).push(msg);
+        renderMessages();
+        scrollToBottom();
+        renderChatList();
+      } else {
+        showToast(msg?.error || '语音发送失败', 2000, 'error');
+      }
+    });
+  };
+  reader.readAsDataURL(blob);
+}
+
+// Voice button: hold to record (mobile touch / desktop mouse)
+let voicePressTimer = null;
+let isVoicePressed = false;
+
+voiceBtn?.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  if (isRecording) return;
+  isVoicePressed = true;
+  voicePressTimer = setTimeout(() => {
+    if (isVoicePressed) startRecording();
+  }, 200);
+});
+
+document.addEventListener('mouseup', () => {
+  if (isVoicePressed) {
+    isVoicePressed = false;
+    if (voicePressTimer) { clearTimeout(voicePressTimer); voicePressTimer = null; }
+    if (isRecording) stopRecording();
+  }
+});
+
+voiceBtn?.addEventListener('touchstart', (e) => {
+  if (isRecording) return;
+  isVoicePressed = true;
+  voicePressTimer = setTimeout(() => {
+    if (isVoicePressed) startRecording();
+  }, 200);
+}, { passive: true });
+
+document.addEventListener('touchend', (e) => {
+  if (isVoicePressed) {
+    isVoicePressed = false;
+    if (voicePressTimer) { clearTimeout(voicePressTimer); voicePressTimer = null; }
+    if (isRecording) stopRecording();
+  }
+});
+
+// Swipe up to cancel
+let voiceCancelY = 0;
+voiceBtn?.addEventListener('touchstart', (e) => {
+  voiceCancelY = e.touches[0].clientY;
+}, { passive: true });
+
+document.addEventListener('touchmove', (e) => {
+  if (isRecording && e.touches[0].clientY < voiceCancelY - 80) {
+    cancelRecording();
+    showToast('已取消', 1000);
+  }
+}, { passive: true });
+
+// ═══════════════════════════════════════════════════════════════
+// 语音消息 — 播放
+// ═══════════════════════════════════════════════════════════════
+let currentPlayingVoice = null;
+let voicePlayInterval = null;
+
+function toggleVoicePlay(voiceEl) {
+  if (!voiceEl || !voicePlayer) return;
+  const url = voiceEl.dataset.url;
+  const msgId = voiceEl.dataset.msgId;
+
+  // If clicking the same voice that's playing, pause it
+  if (currentPlayingVoice === msgId && !voicePlayer.paused) {
+    voicePlayer.pause();
+    voiceEl.dataset.playing = 'false';
+    voiceEl.querySelector('.voice-play-icon')?.classList.replace('bi-pause-fill', 'bi-play-fill');
+    clearInterval(voicePlayInterval);
+    return;
+  }
+
+  // Stop previous voice
+  if (currentPlayingVoice) {
+    const prev = document.querySelector(`.voice-bubble[data-msg-id="${currentPlayingVoice}"]`);
+    if (prev) {
+      prev.dataset.playing = 'false';
+      prev.querySelector('.voice-play-icon')?.classList.replace('bi-pause-fill', 'bi-play-fill');
+    }
+  }
+  clearInterval(voicePlayInterval);
+
+  // Play new voice
+  voicePlayer.src = url;
+  voicePlayer.play().then(() => {
+    voicePlayer.playbackRate = 1;
+    currentPlayingVoice = msgId;
+    voiceEl.dataset.playing = 'true';
+    voiceEl.querySelector('.voice-play-icon')?.classList.replace('bi-play-fill', 'bi-pause-fill');
+
+    // Update progress
+    voicePlayInterval = setInterval(() => {
+      if (voicePlayer.ended || voicePlayer.paused) {
+        clearInterval(voicePlayInterval);
+        voiceEl.dataset.playing = 'false';
+        voiceEl.querySelector('.voice-play-icon')?.classList.replace('bi-pause-fill', 'bi-play-fill');
+        currentPlayingVoice = null;
+      }
+    }, 200);
+  }).catch(() => {
+    showToast('音频加载失败', 1500, 'error');
+  });
+}
+
+// Voice bubble click handler
+document.addEventListener('click', (e) => {
+  const voiceBubble = e.target.closest('.voice-bubble');
+  if (voiceBubble) {
+    // Mark as read (remove unread dot)
+    const dot = voiceBubble.querySelector('.voice-unread-dot');
+    if (dot) dot.style.display = 'none';
+    toggleVoicePlay(voiceBubble);
+  }
+});
+
+// Clean up voice player on page unload
+window.addEventListener('beforeunload', () => {
+  if (voicePlayer) voicePlayer.pause();
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
 });
 
 // ─── Image preview ─────────────────────────────────────────

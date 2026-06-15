@@ -164,6 +164,10 @@ fs.mkdirSync(uploadsDir, { recursive: true });
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 
+// Audio uploads directory
+const audioDir = path.join(__dirname, 'uploads', 'audio');
+try { fs.mkdirSync(audioDir, { recursive: true }); } catch (e) { /* ignore */ }
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadsDir),
   filename: (req, file, cb) => {
@@ -1119,6 +1123,76 @@ io.on('connection', (socket) => {
 
     callback(msg);
     console.log(`[图片消息] ${from} → ${to}: ${filename}`);
+  });
+
+  // ─── Send voice message ─────────────────────────────────
+  socket.on('send-voice', ({ to, dataUrl, duration }, callback) => {
+    const from = socket.userId;
+    if (!from || typeof to !== 'string' || typeof dataUrl !== 'string') {
+      return callback?.({ error: '参数不完整' });
+    }
+
+    // Validate base64 audio (opus/webm)
+    const match = dataUrl.match(/^data:audio\/(webm|ogg|mp3|wav);base64,(.+)$/);
+    if (!match) return callback?.({ error: '无效的音频格式' });
+
+    const ext = match[1];
+    const buffer = Buffer.from(match[2], 'base64');
+
+    // Size check (2MB max for voice messages)
+    if (buffer.length > 2 * 1024 * 1024) {
+      return callback?.({ error: '语音消息不能超过 2MB' });
+    }
+
+    const filename = `voice_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const filepath = path.join(audioDir, filename);
+    try { fs.writeFileSync(filepath, buffer); } catch (e) {
+      return callback?.({ error: '语音保存失败' });
+    }
+
+    const audioUrl = `/uploads/audio/${filename}`;
+    const isGroup = to.startsWith('g_');
+    const msg = {
+      id: genMsgId(),
+      from, to,
+      type: 'voice',
+      text: audioUrl,
+      duration: typeof duration === 'number' ? duration : 0,
+      time: Date.now(),
+      status: 'sent',
+    };
+
+    if (isGroup) {
+      const g = groups.get(to);
+      if (!g || !g.members.some(m => m.userId === from)) {
+        try { fs.unlinkSync(filepath); } catch (e) { /* ignore */ }
+        return callback?.({ error: '群组不存在或已退出' });
+      }
+      if (!messages.has(to)) messages.set(to, []);
+      messages.get(to).push(msg);
+      if (messages.get(to).length > 500) messages.set(to, messages.get(to).slice(-500));
+      msg.status = 'delivered';
+      socket.to(to).emit('new-message', msg);
+      callback(msg);
+      console.log(`[语音消息] ${from} → 群 ${to}: ${filename} (${duration}s)`);
+      return;
+    }
+
+    // Single chat
+    const chatId = getChatId(from, to);
+    if (!messages.has(chatId)) messages.set(chatId, []);
+    messages.get(chatId).push(msg);
+    if (messages.get(chatId).length > 500) messages.set(chatId, messages.get(chatId).slice(-500));
+
+    const target = users.get(to);
+    if (target?.online) {
+      msg.status = 'delivered';
+      io.to(to).emit('new-message', msg);
+      io.to(from).emit('message-status', { messageId: msg.id, status: 'delivered', chatId });
+    }
+
+    callback(msg);
+    console.log(`[语音消息] ${from} → ${to}: ${filename} (${duration}s)`);
   });
 
   // ─── Send red packet ────────────────────────────────────

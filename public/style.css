@@ -492,6 +492,52 @@ body {
 .message-row.mine .message-image { border-bottom-right-radius: 4px; }
 .message-row.other .message-image { border-bottom-left-radius: 4px; }
 
+/* ─── Voice message bubbles ────────────────────────────── */
+.voice-bubble {
+  display:inline-flex; align-items:center; gap:.5rem;
+  padding:.5rem .8rem; border-radius:8px; cursor:pointer;
+  min-width:100px; max-width:200px;
+  user-select:none; transition:background .15s;
+}
+.voice-bubble.other { background:#f0f0f0; }
+.voice-bubble.mine { background:rgba(7,193,96,.12); flex-direction:row-reverse; }
+.voice-bubble:active { opacity:.7; }
+.voice-bubble[data-playing="true"] { background:rgba(7,193,96,.2); }
+.voice-play-icon { font-size:1.2rem; color:var(--green); flex-shrink:0; }
+.voice-duration { font-size:.82rem; color:#333; white-space:nowrap; }
+.message-row.mine .voice-duration { color:#333; }
+.voice-unread-dot {
+  width:8px; height:8px; border-radius:50%; background:var(--danger);
+  display:inline-block; flex-shrink:0;
+}
+
+/* ─── Recording overlay ────────────────────────────────── */
+.recording-overlay {
+  position:fixed; inset:0; z-index:9998;
+  background:rgba(0,0,0,.5); backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  display:flex; align-items:center; justify-content:center;
+  animation:fadeIn .15s ease-out;
+}
+.recording-indicator {
+  background:#fff; border-radius:20px; padding:2rem 3rem;
+  text-align:center; box-shadow:0 8px 40px rgba(0,0,0,.2);
+  animation:spinnerIn .2s ease-out;
+}
+.recording-timer { font-size:2rem; font-weight:700; color:var(--danger); margin:.8rem 0; font-variant-numeric:tabular-nums; }
+.recording-hint { font-size:.78rem; color:#999; }
+.recording-wave { display:flex; gap:3px; justify-content:center; align-items:center; height:30px; }
+.recording-wave span {
+  width:4px; border-radius:2px; background:var(--danger);
+  animation:waveAnim .6s ease-in-out infinite alternate;
+}
+.recording-wave span:nth-child(1) { height:8px; animation-delay:0s; }
+.recording-wave span:nth-child(2) { height:16px; animation-delay:.1s; }
+.recording-wave span:nth-child(3) { height:28px; animation-delay:.2s; }
+.recording-wave span:nth-child(4) { height:16px; animation-delay:.3s; }
+.recording-wave span:nth-child(5) { height:8px; animation-delay:.4s; }
+@keyframes waveAnim { 0% { transform:scaleY(.5); } 100% { transform:scaleY(1); } }
+
 /* ─── Image preview overlay ────────────────────────── */
 .img-preview-overlay {
   position:fixed; inset:0; z-index:400;
@@ -756,6 +802,8 @@ body {
   font-size:1.05rem;
 }
 .input-action-btn:hover { background:rgba(0,0,0,.04); color:var(--green); }
+.input-action-btn.recording { color:var(--danger); animation:pulse .8s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.15); } }
 .input-wrapper {
   flex:1; background:#fff; border-radius:22px;
   border:1px solid #e0e0e0; transition:var(--transition);
