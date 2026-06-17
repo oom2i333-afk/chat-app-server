@@ -1012,6 +1012,30 @@ io.on('connection', (socket) => {
     if (!from || typeof to !== 'string' || typeof text !== 'string' || !text.trim()) return;
 
     const isGroup = to.startsWith('g_');
+
+    // ─── 群聊 @ 提及解析 ──────────────────────────────────
+    let mentionedUserIds = [];
+    if (isGroup) {
+      const g = groups.get(to);
+      if (g) {
+        var mentionRegex = /@([^\s]+)/g;
+        var mentionMatch;
+        while ((mentionMatch = mentionRegex.exec(text)) !== null) {
+          var mentionedName = mentionMatch[1];
+          if (mentionedName === 'all') {
+            mentionedUserIds = g.members.map(function(m) { return m.userId; });
+            break;
+          }
+          g.members.forEach(function(m) {
+            const memberUser = users.get(m.userId);
+            if (memberUser && memberUser.name === mentionedName && mentionedUserIds.indexOf(m.userId) === -1) {
+              mentionedUserIds.push(m.userId);
+            }
+          });
+        }
+      }
+    }
+
     const msg = {
       id: genMsgId(),
       from, to,
@@ -1020,6 +1044,7 @@ io.on('connection', (socket) => {
       time: Date.now(),
       status: 'sent',
       readAt: null,
+      mentionedUserIds: mentionedUserIds,
     };
 
     if (isGroup) {
