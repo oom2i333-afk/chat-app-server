@@ -860,6 +860,22 @@ socket.on('user-stop-typing', ({ from }) => {
   if (activeChat === from) { typingIndicator.textContent = ''; }
 });
 
+// ─── 消息回应 ──────────────────────────────────────────
+socket.on('message-reacted', (data) => {
+  var chatId = activeChat && (activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat));
+  if (data.chatId === chatId) {
+    var msgs = messageCache.get(chatId) || [];
+    for (var i = 0; i < msgs.length; i++) {
+      if (msgs[i].id === data.messageId) {
+        msgs[i].reactions = data.reactions;
+        break;
+      }
+    }
+    // Also update cached messages for other chat listings
+    renderMessages();
+  }
+});
+
 } // ← registerSocketHandlers()
 
 // ═══════════════════════════════════════════════════════════════
@@ -1524,23 +1540,30 @@ function renderMessages() {
     });
   });
 
-  // Long press for selection mode on mobile
-  messagesContainer.querySelectorAll('.message-row').forEach(row => {
-    let longPressTimer = null;
-    row.addEventListener('touchstart', (e) => {
-      longPressTimer = setTimeout(() => {
-        longPressTimer = null;
-        if (selectionToolbar.style.display !== 'flex') {
-          enterSelectionMode();
-          // Select this message
+  // Long press: in selection mode → select; otherwise → show reaction panel
+  messagesContainer.querySelectorAll('.message-row').forEach(function(row) {
+    var longPressTimer2 = null;
+    var longPressTriggered2 = false;
+    row.addEventListener('touchstart', function(e) {
+      longPressTriggered2 = false;
+      longPressTimer2 = setTimeout(function() {
+        longPressTriggered2 = true;
+        if (selectionToolbar.style.display === 'flex') {
           selectedMsgIds.add(row.dataset.msgId);
           row.classList.add('selected');
-          selectionCount.textContent = `已选 ${selectedMsgIds.size} 条`;
+          selectionCount.textContent = '已选 ' + selectedMsgIds.size + ' 条';
+        } else {
+          var bubble = row.querySelector('.message-bubble, .file-bubble, .voice-bubble, img.message-image, .rp-bubble');
+          if (bubble) showReactionPanel(row.dataset.msgId, bubble);
         }
       }, 500);
     }, { passive: true });
-    row.addEventListener('touchend', () => { if (longPressTimer) clearTimeout(longPressTimer); });
-    row.addEventListener('touchmove', () => { if (longPressTimer) clearTimeout(longPressTimer); });
+    row.addEventListener('touchend', function() {
+      if (longPressTimer2) clearTimeout(longPressTimer2);
+    });
+    row.addEventListener('touchmove', function() {
+      if (longPressTimer2) clearTimeout(longPressTimer2);
+    });
   });
 
   // 绑定文件气泡点击事件（预览/下载）
@@ -1563,6 +1586,33 @@ function renderMessages() {
         a.download = name;
         a.target = '_blank';
         a.click();
+      }
+    });
+  });
+
+  // 绑定反应气泡点击 → 切换回应
+  messagesContainer.querySelectorAll('.reaction-badge').forEach(function(el) {
+    el.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var msgRow = this.closest('.message-row');
+      if (msgRow) {
+        var msgId = msgRow.dataset.msgId;
+        var emoji = this.dataset.emoji;
+        if (msgId && emoji) {
+          var chatId2 = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
+          socket.emit('react-to-message', { messageId: msgId, chatId: chatId2, emoji: emoji }, function(res) {
+            if (res && res.success) {
+              var msgs4 = messageCache.get(chatId2) || [];
+              for (var i = 0; i < msgs4.length; i++) {
+                if (msgs4[i].id === msgId) {
+                  msgs4[i].reactions = res.reactions;
+                  break;
+                }
+              }
+              renderMessages();
+            }
+          });
+        }
       }
     });
   });
@@ -1635,6 +1685,7 @@ function renderMessageHtml(m, chatPartner, isGroup) {
             <span class="message-time">${timeStr}</span>
             ${statusIcon}
           </div>
+          ${renderReactions(m.reactions)}
         </div>
       </div>`;
   }
@@ -1659,6 +1710,7 @@ function renderMessageHtml(m, chatPartner, isGroup) {
             <span class="message-time">${timeStr}</span>
             ${statusIcon}
           </div>
+          ${renderReactions(m.reactions)}
         </div>
       </div>`;
   }
@@ -1684,6 +1736,7 @@ function renderMessageHtml(m, chatPartner, isGroup) {
             <span class="message-time">${timeStr}</span>
             ${statusIcon3}
           </div>
+          ${renderReactions(m.reactions)}
         </div>
       </div>`;
   }
@@ -1701,6 +1754,7 @@ function renderMessageHtml(m, chatPartner, isGroup) {
           ${statusIcon}
           ${isMine && canRecall(m) ? `<span class="recall-action" data-msg-id="${m.id}" style="font-size:.6rem;color:#999;cursor:pointer;margin-left:2px">撤回</span>` : ''}
         </div>
+        ${renderReactions(m.reactions)}
       </div>
     </div>`;
 }
@@ -2904,6 +2958,92 @@ function formatDate(ts) {
   const y = new Date(now); y.setDate(y.getDate() - 1);
   if (d.toDateString() === y.toDateString()) return '昨天';
   return `${d.getFullYear()}年${pad(d.getMonth()+1)}月${pad(d.getDate())}日`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 消息回应 (Reactions)
+// ═══════════════════════════════════════════════════════════════
+const REACTION_EMOJIS = ['👍', '❤️', '😄', '😢', '😡'];
+var reactionPanel = null;
+var reactionTargetMsgId = null;
+
+function createReactionPanel() {
+  if (reactionPanel) return;
+  reactionPanel = document.createElement('div');
+  reactionPanel.id = 'reactionPanel';
+  reactionPanel.className = 'reaction-panel';
+  reactionPanel.style.display = 'none';
+  document.body.appendChild(reactionPanel);
+
+  REACTION_EMOJIS.forEach(function(emoji) {
+    var btn = document.createElement('button');
+    btn.className = 'reaction-btn';
+    btn.textContent = emoji;
+    btn.dataset.emoji = emoji;
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      sendReaction(emoji);
+    });
+    reactionPanel.appendChild(btn);
+  });
+}
+
+function showReactionPanel(msgId, targetEl) {
+  reactionTargetMsgId = msgId;
+  createReactionPanel();
+  var rect = targetEl.getBoundingClientRect();
+  var panelW = 240;
+  var left = rect.left + rect.width / 2 - panelW / 2;
+  if (left < 8) left = 8;
+  if (left + panelW > window.innerWidth - 8) left = window.innerWidth - panelW - 8;
+
+  reactionPanel.style.left = left + 'px';
+  reactionPanel.style.bottom = (window.innerHeight - rect.top + 10) + 'px';
+  reactionPanel.style.display = 'flex';
+}
+
+function hideReactionPanel() {
+  if (reactionPanel) reactionPanel.style.display = 'none';
+}
+
+function sendReaction(emoji) {
+  if (!reactionTargetMsgId || !activeChat) return;
+  var chatId = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
+  socket.emit('react-to-message', {
+    messageId: reactionTargetMsgId,
+    chatId: chatId,
+    emoji: emoji
+  }, function(res) {
+    if (res && res.success) {
+      var msgs2 = messageCache.get(chatId) || [];
+      for (var i = 0; i < msgs2.length; i++) {
+        if (msgs2[i].id === reactionTargetMsgId) {
+          msgs2[i].reactions = res.reactions;
+          break;
+        }
+      }
+      renderMessages();
+    }
+  });
+  hideReactionPanel();
+}
+
+function renderReactions(reactions) {
+  if (!reactions || reactions.length === 0) return '';
+  var counts = {};
+  var myId = currentUser ? currentUser.id : '';
+  reactions.forEach(function(r) {
+    if (!counts[r.emoji]) counts[r.emoji] = { count: 0, mine: false };
+    counts[r.emoji].count++;
+    if (r.userId === myId) counts[r.emoji].mine = true;
+  });
+  var html = '<div class="reactions-bar">';
+  for (var emoji in counts) {
+    var c = counts[emoji];
+    html += '<span class="reaction-badge' + (c.mine ? ' mine' : '') + '" data-emoji="' + emoji + '">' + emoji + (c.count > 1 ? '<span class="reaction-count">' + c.count + '</span>' : '') + '</span>';
+  }
+  html += '</div>';
+  return html;
 }
 
 function escapeHtml(text) {

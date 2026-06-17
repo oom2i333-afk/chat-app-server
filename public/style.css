@@ -1527,3 +1527,49 @@ body {
   .file-icon { font-size:1.5rem; }
   .file-name { font-size:.8rem; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   消息回应 (Reactions)
+   ═══════════════════════════════════════════════════════════════ */
+.reaction-panel {
+  position:fixed; z-index:1000;
+  display:flex; gap:4px;
+  background:#fff; border-radius:24px;
+  padding:6px 10px; box-shadow:0 4px 20px rgba(0,0,0,.15);
+  animation:reactionPanelIn .2s ease-out;
+}
+@keyframes reactionPanelIn {
+  from { transform:translateY(10px); opacity:0; }
+  to { transform:translateY(0); opacity:1; }
+}
+.reaction-btn {
+  width:40px; height:40px; border:none; border-radius:50%;
+  background:transparent; font-size:1.5rem; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:transform .15s, background .15s;
+}
+.reaction-btn:hover { transform:scale(1.25); background:rgba(0,0,0,.04); }
+.reaction-btn:active { transform:scale(1.1); }
+
+.reactions-bar {
+  display:flex; gap:2px; flex-wrap:wrap;
+  margin-top:2px; padding-left:2px;
+}
+.reaction-badge {
+  display:inline-flex; align-items:center; gap:1px;
+  padding:1px 5px; border-radius:12px;
+  background:rgba(255,255,255,.85);
+  border:1px solid var(--wa-border);
+  font-size:.78rem; line-height:1.4;
+  cursor:pointer; user-select:none; -webkit-user-select:none;
+  transition:transform .12s;
+}
+.reaction-badge.mine {
+  background:rgba(7,193,96,.12);
+  border-color:rgba(7,193,96,.3);
+}
+.reaction-badge:active { transform:scale(.9); }
+.reaction-count {
+  font-size:.62rem; color:var(--wa-text-muted); margin-left:1px;
+  font-weight:500;
+}
