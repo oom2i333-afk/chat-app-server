@@ -221,6 +221,126 @@ const selectionForward = $('selectionForward');
 const selectionCancel = $('selectionCancel');
 let selectedMsgIds = new Set();
 
+// ═══════════════════════════════════════════════════════════════
+// NativeBridge — Capacitor 原生能力桥接（自动降级）
+// ═══════════════════════════════════════════════════════════════
+const NativeBridge = {
+  get isApp() {
+    return typeof window.Capacitor !== 'undefined' && window.Capacitor.isNativePlatform();
+  },
+  get platform() {
+    if (!this.isApp) return 'web';
+    return Capacitor.getPlatform();
+  },
+
+  // ─── 相机/相册 ──────────────────────────────────────────
+  async pickImage() {
+    if (!this.isApp) {
+      return this.pickImageLegacy();
+    }
+    try {
+      const Camera = Capacitor.Plugins.Camera;
+      if (typeof Camera.pickImages === 'function') {
+        const result = await Camera.pickImages({
+          quality: 80,
+          limit: 1,
+          correctOrientation: true,
+        });
+        if (result && result.photos && result.photos.length > 0) {
+          return result.photos[0].dataUrl || result.photos[0].webPath || result.photos[0].path;
+        }
+      }
+      // Fallback: use getPhoto
+      const photo = await Camera.getPhoto({
+        quality: 80,
+        resultType: 'DATA_URL',
+        source: 'PHOTOS',
+        correctOrientation: true,
+      });
+      if (photo && photo.dataUrl) return photo.dataUrl;
+      if (photo && photo.base64String) return 'data:image/jpeg;base64,' + photo.base64String;
+      return null;
+    } catch (e) {
+      console.warn('[NativeBridge] Camera failed, fallback:', e.message);
+      return this.pickImageLegacy();
+    }
+  },
+
+  pickImageLegacy() {
+    return new Promise(function(resolve) {
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = function(e) {
+        var file = e.target.files[0];
+        if (!file) { resolve(null); return; }
+        if (file.size > 5 * 1024 * 1024) { showToast('图片不能超过 5MB', 2000, 'error'); resolve(null); return; }
+        var reader = new FileReader();
+        reader.onload = function(ev) { resolve(ev.target.result); };
+        reader.onerror = function() { resolve(null); };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    });
+  },
+
+  // ─── 麦克风权限预检 ────────────────────────────────────
+  async requestMicPermission() {
+    try {
+      var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(function(t) { t.stop(); });
+      return true;
+    } catch (e) {
+      if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+        return false;
+      }
+      // 可能是设备无麦克风，仍允许尝试
+      return true;
+    }
+  },
+
+  // ─── 键盘监听 ──────────────────────────────────────────
+  keyboardListeners: [],
+  onKeyboardShow(callback) {
+    if (!this.isApp) return;
+    var Keyboard = Capacitor.Plugins.Keyboard;
+    var listener = Keyboard.addListener('keyboardWillShow', function(info) {
+      callback(info.keyboardHeight);
+    });
+    this.keyboardListeners.push(listener);
+  },
+  onKeyboardHide(callback) {
+    if (!this.isApp) return;
+    var Keyboard = Capacitor.Plugins.Keyboard;
+    var listener = Keyboard.addListener('keyboardWillHide', function() {
+      callback();
+    });
+    this.keyboardListeners.push(listener);
+  },
+  removeKeyboardListeners() {
+    this.keyboardListeners.forEach(function(l) { l.remove(); });
+    this.keyboardListeners = [];
+  },
+};
+
+// NativeBridge 初始化：仅 App 环境时绑定键盘事件
+if (NativeBridge.isApp) {
+  NativeBridge.onKeyboardShow(function(height) {
+    if (messagesContainer) {
+      messagesContainer.classList.add('keyboard-open');
+      messagesContainer.style.paddingBottom = (height + 60) + 'px';
+    }
+    scrollToBottom();
+  });
+  NativeBridge.onKeyboardHide(function() {
+    if (messagesContainer) {
+      messagesContainer.classList.remove('keyboard-open');
+      messagesContainer.style.paddingBottom = '';
+    }
+  });
+  console.log('[NativeBridge] 已初始化, platform:', NativeBridge.platform);
+}
+
 // Image upload
 const imageBtn = $('imageBtn');
 const imageInput = $('imageInput');
@@ -1598,30 +1718,49 @@ function updateSendBtn() {
 }
 
 // ─── Image upload ──────────────────────────────────────────
-imageBtn?.addEventListener('click', () => imageInput.click());
-imageInput?.addEventListener('change', (e) => {
-  const file = e.target.files[0];
+// 发送图片 dataUrl 的通用函数
+function sendImageData(dataUrl) {
+  if (!dataUrl || !activeChat) return;
+  var estimatedBytes = dataUrl.length * 0.75;
+  if (estimatedBytes > 5 * 1024 * 1024) {
+    showToast('图片不能超过 5MB', 2000, 'error');
+    return;
+  }
+  showToast('上传中...', 3000);
+  socket.emit('send-image', { to: activeChat, dataUrl }, function(msg) {
+    if (msg && !msg.error) {
+      var chatId = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
+      if (!messageCache.has(chatId)) messageCache.set(chatId, []);
+      messageCache.get(chatId).push(msg);
+      renderMessages();
+      scrollToBottom();
+      renderChatList();
+    } else {
+      showToast(msg?.error || '图片发送失败', 2000, 'error');
+    }
+  });
+}
+
+imageBtn?.addEventListener('click', async function() {
+  if (NativeBridge.isApp) {
+    // App 内优先使用 Capacitor Camera 插件
+    var dataUrl = await NativeBridge.pickImage();
+    if (dataUrl) sendImageData(dataUrl);
+  } else {
+    // 浏览器降级：触发 file input
+    imageInput.click();
+  }
+});
+imageInput?.addEventListener('change', function(e) {
+  var file = e.target.files[0];
   if (!file || !activeChat) return;
   if (file.size > 5 * 1024 * 1024) { showToast('图片不能超过 5MB', 2000, 'error'); return; }
   if (!file.type.startsWith('image/')) { showToast('请选择图片文件', 2000, 'error'); return; }
 
-  // Show a progress indicator
   showToast('上传中...', 3000);
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const dataUrl = ev.target.result;
-    socket.emit('send-image', { to: activeChat, dataUrl, fileName: file.name }, (msg) => {
-      if (msg && !msg.error) {
-        const chatId = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
-        if (!messageCache.has(chatId)) messageCache.set(chatId, []);
-        messageCache.get(chatId).push(msg);
-        renderMessages();
-        scrollToBottom();
-        renderChatList();
-      } else {
-        showToast(msg?.error || '图片发送失败', 2000, 'error');
-      }
-    });
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    sendImageData(ev.target.result);
   };
   reader.readAsDataURL(file);
   imageInput.value = '';
@@ -1644,6 +1783,12 @@ const voicePlayer = document.getElementById('voicePlayer');
 // Start recording
 async function startRecording() {
   if (!activeChat) return;
+  // 预检麦克风权限
+  var hasMic = await NativeBridge.requestMicPermission();
+  if (!hasMic) {
+    showToast('请允许麦克风权限', 2000, 'error');
+    return;
+  }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     // Prefer webm opus, fallback to any supported type

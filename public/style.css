@@ -1250,3 +1250,252 @@ body {
   .sidebar-profile { padding-top:calc(.6rem + env(safe-area-inset-top)); }
   .chat-header { padding-top:calc(.6rem + env(safe-area-inset-top)) !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   移动端适配 v2 — 增强
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── 输入区增强 ────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .input-area {
+    padding: .45rem .5rem !important;
+    padding-bottom: calc(.45rem + env(safe-area-inset-bottom, 0px)) !important;
+    gap: .3rem;
+    flex-shrink: 0;
+  }
+  .input-wrapper {
+    flex: 1;
+    min-width: 0;
+  }
+  .input-wrapper input {
+    font-size: 1rem !important;      /* 防止 iOS 自动缩放 */
+    padding: .55rem .85rem !important;
+    min-height: 40px;
+  }
+  .input-action-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 1.15rem !important;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .send-btn {
+    padding: .35rem .7rem !important;
+    font-size: .88rem !important;
+    min-height: 38px;
+    flex-shrink: 0;
+  }
+  /* 移动端隐藏低频按钮，减少输入区拥挤 */
+  #redpacketBtn { display: none; }
+  #emojiBtn { display: none; }
+
+  /* ─── 聊天列表触控优化 ──────────────────────────────── */
+  .chat-item, .contact-item {
+    padding: .65rem .8rem !important;
+    min-height: 58px;
+  }
+  .chat-item .avatar, .contact-item .avatar {
+    width: 44px !important;
+    height: 44px !important;
+    font-size: .85rem !important;
+  }
+  .chat-item .chat-info .chat-name {
+    font-size: .9rem;
+  }
+  .chat-item .chat-info .chat-preview {
+    font-size: .8rem;
+  }
+
+  /* ─── 聊天窗口全屏 ──────────────────────────────────── */
+  .chat-window.active {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    padding-top: 0;
+  }
+  .chat-window.active .chat-header {
+    padding-top: calc(.5rem + env(safe-area-inset-top, 0px)) !important;
+    min-height: 52px;
+  }
+  .chat-window.active .messages-container {
+    flex: 1;
+    height: auto;
+  }
+  .mobile-back {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    font-size: 1.2rem;
+  }
+
+  /* ─── 消息气泡触控 ──────────────────────────────────── */
+  .message-body {
+    max-width: 82% !important;
+  }
+  .message-bubble {
+    padding: .5rem .75rem !important;
+    font-size: .9rem !important;
+  }
+  .message-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: .7rem !important;
+  }
+
+  /* ─── 侧栏 Tab 优化 ──────────────────────────────────── */
+  .tab {
+    font-size: .82rem !important;
+    padding: .55rem .3rem !important;
+    flex: 1;
+  }
+  .tab i {
+    font-size: 1.05rem;
+  }
+
+  /* ─── 骨架屏适配 ────────────────────────────────────── */
+  .msg-loading-skeleton {
+    padding: .5rem .6rem;
+  }
+}
+
+/* ─── 小屏手机优化 ──────────────────────────────────── */
+@media (max-width: 380px) {
+  .chat-item { padding: .5rem .6rem !important; min-height: 52px; }
+  .chat-item .avatar, .contact-item .avatar { width: 38px !important; height: 38px !important; }
+  .message-bubble { font-size: .85rem !important; max-width: 88%; }
+  .input-action-btn { width: 34px; height: 34px; font-size: 1rem !important; }
+  .input-wrapper input { font-size: .9rem !important; padding: .45rem .7rem !important; min-height: 36px; }
+  .send-btn { font-size: .82rem !important; padding: .3rem .6rem !important; min-height: 34px; }
+  /* 小屏隐藏语音按钮，进一步释放输入区 */
+  #voiceBtn { display: none; }
+}
+
+/* ─── 登录/注册页移动端适配 ──────────────────────────── */
+@media (max-width: 768px) {
+  .login-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 1.5rem 1.2rem !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    min-height: 100vh;
+    justify-content: center;
+  }
+  .login-card .login-logo h1 {
+    font-size: 2rem;
+  }
+  .login-card .login-logo .login-subtitle {
+    font-size: .8rem;
+  }
+  .input-group input {
+    font-size: 1rem !important;
+    padding: .7rem .8rem !important;
+    min-height: 44px;
+  }
+  .btn-primary {
+    min-height: 44px;
+    font-size: .95rem;
+  }
+  .login-tabs {
+    margin-bottom: 1rem;
+  }
+  .login-tab {
+    font-size: .9rem;
+    padding: .4rem .8rem;
+  }
+  .login-bg {
+    display: none;
+  }
+  #loginPage {
+    background: linear-gradient(135deg, #075E54 0%, #1aad19 100%);
+  }
+}
+
+/* ─── 个人资料页移动端适配 ────────────────────────────── */
+@media (max-width: 768px) {
+  .profile-panel {
+    padding: .8rem .6rem !important;
+  }
+  .pp-avatar {
+    width: 64px !important;
+    height: 64px !important;
+    font-size: 1.3rem !important;
+  }
+  .pp-section {
+    padding: 0 .6rem !important;
+  }
+  .pp-row {
+    padding: .55rem 0 !important;
+  }
+  .pp-label {
+    font-size: .78rem !important;
+  }
+}
+
+/* ─── 弹窗/Modal 移动端适配 ───────────────────────────── */
+@media (max-width: 768px) {
+  .rp-modal {
+    width: 92% !important;
+    max-width: 340px;
+  }
+  .rp-open-card {
+    width: 85% !important;
+    max-width: 280px;
+  }
+
+  /* ─── 搜索栏适配 ────────────────────────────────────── */
+  .search-box {
+    padding: .35rem .6rem !important;
+  }
+  .search-box input {
+    font-size: .88rem;
+    padding: .35rem .7rem .35rem 2rem !important;
+  }
+}
+
+/* ─── 侧栏个人资料适配 ────────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar-profile {
+    padding: .5rem .65rem !important;
+    padding-top: calc(.5rem + env(safe-area-inset-top, 0px)) !important;
+  }
+  .profile-name {
+    font-size: .85rem !important;
+  }
+  .profile-status {
+    font-size: .7rem !important;
+  }
+  .profile-avatar {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: .85rem !important;
+  }
+  .profile-actions {
+    gap: 1px;
+  }
+  .header-btn {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: .9rem !important;
+  }
+}
+
+/* ─── iOS 键盘安全区（无 notch 的旧机型） ─────────────── */
+@supports (padding-bottom: constant(safe-area-inset-bottom)) {
+  @media (max-width: 768px) {
+    .input-area {
+      padding-bottom: calc(.45rem + constant(safe-area-inset-bottom, 0px)) !important;
+    }
+    .chat-window.active .chat-header {
+      padding-top: calc(.5rem + constant(safe-area-inset-top, 0px)) !important;
+    }
+    .sidebar-profile {
+      padding-top: calc(.5rem + constant(safe-area-inset-top, 0px)) !important;
+    }
+  }
+}
