@@ -339,6 +339,34 @@ if (NativeBridge.isApp) {
     }
   });
   console.log('[NativeBridge] 已初始化, platform:', NativeBridge.platform);
+
+  // ─── 推送通知注册 (Capacitor) ──────────────────────────
+  try {
+    var PushNotifications = Capacitor.Plugins.PushNotifications;
+    PushNotifications.requestPermissions().then(function(result) {
+      if (result.receive === 'granted') {
+        PushNotifications.register();
+      }
+    });
+    PushNotifications.addListener('registration', function(token) {
+      console.log('[Push] Token:', token.value);
+      fetch('/api/push/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token.value, platform: NativeBridge.platform })
+      }).catch(function(err) {
+        console.warn('[Push] Register failed:', err);
+      });
+    });
+    PushNotifications.addListener('pushReceived', function(notification) {
+      console.log('[Push] Received:', notification);
+    });
+    PushNotifications.addListener('pushNotificationActionPerformed', function(notification) {
+      console.log('[Push] Action performed:', notification);
+    });
+  } catch (e) {
+    console.warn('[Push] 推送初始化失败:', e.message);
+  }
 }
 
 // Image upload
@@ -3045,6 +3073,104 @@ function renderReactions(reactions) {
   html += '</div>';
   return html;
 }
+
+// ─── 扫码 ────────────────────────────────────────────────
+$('scanQrBtn')?.addEventListener('click', async function() {
+  if (NativeBridge.isApp) {
+    try {
+      var Camera2 = Capacitor.Plugins.Camera;
+      showToast('请对准二维码拍照', 2000);
+      var photo = await Camera2.getPhoto({
+        quality: 50,
+        resultType: 'DATA_URL',
+        source: 'CAMERA',
+        correctOrientation: true,
+      });
+      if (photo && photo.dataUrl) {
+        showToast('扫码功能需要安装扫码插件（如 ML Kit）', 2000);
+      }
+    } catch (e) {
+      console.warn('[QR] Scan cancelled or failed:', e.message);
+    }
+  } else {
+    showToast('扫码仅支持手机 App', 1500);
+  }
+});
+
+// ─── 显示我的二维码 ──────────────────────────────────────
+$('ppQrRow')?.addEventListener('click', function() {
+  if (!currentUser) return;
+  var modal = document.createElement('div');
+  modal.className = 'wt-modal';
+  modal.innerHTML = '<div class="modal-overlay" onclick="document.body.removeChild(this.parentNode)"></div><div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:16px;padding:1.5rem;text-align:center;z-index:200;width:260px;box-shadow:0 8px 40px rgba(0,0,0,.15)"><div style="font-size:.9rem;font-weight:600;margin-bottom:.8rem">' + escapeHtml(currentUser.name || '用户') + '</div><img src="/api/user/qrcode/' + currentUser.id + '?t=' + Date.now() + '" style="width:180px;height:180px;border-radius:8px" alt="二维码"><div style="font-size:.7rem;color:#999;margin-top:.5rem">扫一扫二维码，加我好友</div></div>';
+  document.body.appendChild(modal);
+});
+
+// ─── 手势返回（移动端右滑关闭聊天窗口） ────────────────
+(function() {
+  if (window.innerWidth > 768) return;
+
+  var touchStartX = 0;
+  var touchCurrentX = 0;
+  var isSwiping = false;
+  var chatWin = $('chatWindow');
+  var sidebar2 = $('sidebar');
+
+  if (!chatWin) return;
+
+  chatWin.addEventListener('touchstart', function(e) {
+    if (chatWin.style.display !== 'flex' && getComputedStyle(chatWin).display === 'none') return;
+    if (e.touches[0].clientX > 40) return;
+    touchStartX = e.touches[0].clientX;
+    touchCurrentX = touchStartX;
+    isSwiping = false;
+  }, { passive: true });
+
+  chatWin.addEventListener('touchmove', function(e) {
+    if (touchStartX === 0) return;
+    touchCurrentX = e.touches[0].clientX;
+    var deltaX = touchCurrentX - touchStartX;
+    var deltaY = e.touches[0].clientY - e.targetTouches[0].clientY;
+
+    if (Math.abs(deltaX) > Math.abs(deltaY) && deltaX > 10) {
+      isSwiping = true;
+      var translateX = Math.min(deltaX, window.innerWidth * 0.6);
+      chatWin.style.transform = 'translateX(' + translateX + 'px)';
+      chatWin.style.transition = 'none';
+      if (sidebar2) {
+        sidebar2.style.opacity = Math.min(1, deltaX / 200);
+        sidebar2.style.display = 'flex';
+      }
+    }
+  }, { passive: true });
+
+  chatWin.addEventListener('touchend', function() {
+    if (!isSwiping) { touchStartX = 0; return; }
+    var deltaX = touchCurrentX - touchStartX;
+    var threshold = window.innerWidth * 0.3;
+
+    if (deltaX > threshold) {
+      chatWin.style.transition = 'transform .25s ease-out';
+      chatWin.style.transform = 'translateX(100%)';
+      setTimeout(function() {
+        chatWin.style.transform = '';
+        chatWin.style.transition = '';
+        var backBtn = $('mobileBack');
+        if (backBtn) backBtn.click();
+        if (sidebar2) sidebar2.style.opacity = '';
+      }, 250);
+    } else {
+      chatWin.style.transition = 'transform .2s ease-out';
+      chatWin.style.transform = '';
+      setTimeout(function() {
+        chatWin.style.transition = '';
+        if (sidebar2) sidebar2.style.opacity = '';
+      }, 200);
+    }
+    touchStartX = 0;
+    isSwiping = false;
+  }, { passive: true });
+})();
 
 function escapeHtml(text) {
   if (!text) return '';

@@ -1573,3 +1573,11 @@ body {
   font-size:.62rem; color:var(--wa-text-muted); margin-left:1px;
   font-weight:500;
 }
+
+/* ─── 手势返回 ────────────────────────────────────────── */
+.chat-window {
+  transition: transform .2s ease-out;
+}
+.chat-window.active {
+  will-change: transform;
+}

@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const helmet = require('helmet');
 const compression = require('compression');
+const qrImage = require('qr-image');
 const os = require('os');
 
 const app = express();
@@ -493,6 +494,88 @@ app.post('/api/upload-avatar', upload.single('avatar'), (req, res) => {
   }
   user.avatar = avatarUrl;
   res.json({ success: true, avatar: avatarUrl });
+});
+
+// ─── 二维码 ──────────────────────────────────────────────
+// 获取用户二维码
+app.get('/api/user/qrcode/:userId', (req, res) => {
+  const userId = req.params.userId;
+  const user = users.get(userId);
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  const qrContent = 'wetalk://user/' + userId;
+  try {
+    const qr_svg = qrImage.imageSync(qrContent, { type: 'png', margin: 2, size: 8 });
+    res.setHeader('Content-Type', 'image/png');
+    res.send(qr_svg);
+  } catch (e) {
+    res.status(500).json({ error: '二维码生成失败' });
+  }
+});
+
+// 获取群二维码
+app.get('/api/group/qrcode/:groupId', (req, res) => {
+  const groupId = req.params.groupId;
+  const g = groups.get(groupId);
+  if (!g) return res.status(404).json({ error: '群组不存在' });
+  const qrContent = 'wetalk://group/' + groupId;
+  try {
+    const qr_svg = qrImage.imageSync(qrContent, { type: 'png', margin: 2, size: 8 });
+    res.setHeader('Content-Type', 'image/png');
+    res.send(qr_svg);
+  } catch (e) {
+    res.status(500).json({ error: '二维码生成失败' });
+  }
+});
+
+// 解析二维码并执行操作
+app.post('/api/qrcode/scan', express.json(), (req, res) => {
+  const { content, userId } = req.body;
+  if (!content || !userId) return res.json({ success: false, error: '参数不完整' });
+  if (!users.has(userId)) return res.json({ success: false, error: '用户不存在' });
+
+  const userMatch = content.match(/^wetalk:\/\/user\/(.+)$/);
+  const groupMatch = content.match(/^wetalk:\/\/group\/(.+)$/);
+
+  if (userMatch) {
+    const targetId = userMatch[1];
+    if (targetId === userId) return res.json({ success: false, error: '不能添加自己' });
+    if (!users.has(targetId)) return res.json({ success: false, error: '用户不存在' });
+
+    const user = users.get(userId);
+    if (user.friends && user.friends.indexOf(targetId) !== -1) {
+      return res.json({ success: false, error: '已经是好友了' });
+    }
+
+    const targetUser = users.get(targetId);
+    if (!targetUser.friendRequests) targetUser.friendRequests = [];
+    if (targetUser.friendRequests.indexOf(userId) === -1) {
+      targetUser.friendRequests.push(userId);
+    }
+
+    const targetSocket = getSocketByUserId(targetId);
+    if (targetSocket) {
+      targetSocket.emit('friend-request', { from: userId, name: user.name || '未知用户' });
+    }
+
+    return res.json({ success: true, type: 'user', id: targetId, name: users.get(targetId)?.name });
+  }
+
+  if (groupMatch) {
+    const groupId = groupMatch[1];
+    const g = groups.get(groupId);
+    if (!g) return res.json({ success: false, error: '群组不存在' });
+
+    if (g.members.some(function(m) { return m.userId === userId; })) {
+      return res.json({ success: false, error: '你已在群中' });
+    }
+
+    const user2 = users.get(userId);
+    g.members.push({ userId, name: user2?.name || '用户', role: 'member' });
+
+    return res.json({ success: true, type: 'group', id: groupId, name: g.name });
+  }
+
+  res.json({ success: false, error: '无法识别的二维码' });
 });
 
 // ─── 工具函数 ──────────────────────────────────────────────
