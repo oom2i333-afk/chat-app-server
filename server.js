@@ -1535,6 +1535,49 @@ io.on('connection', (socket) => {
     io.to(to).emit('call-ended', { from });
   });
 
+  // ─── Message reaction ────────────────────────────────────
+  socket.on('react-to-message', ({ messageId, chatId, emoji }, callback) => {
+    const from = socket.userId;
+    if (!from || !messageId || !chatId || !emoji) {
+      return callback?.({ error: '参数不完整' });
+    }
+
+    const msgs = messages.get(chatId);
+    if (!msgs) return callback?.({ error: '消息不存在' });
+
+    var msg = null;
+    for (var i = 0; i < msgs.length; i++) {
+      if (msgs[i].id === messageId) { msg = msgs[i]; break; }
+    }
+    if (!msg) return callback?.({ error: '消息不存在' });
+    if (!msg.reactions) msg.reactions = [];
+
+    // Toggle: same emoji → remove, different → switch, none → add
+    var existingIdx = -1;
+    for (var j = 0; j < msg.reactions.length; j++) {
+      if (msg.reactions[j].userId === from) {
+        existingIdx = j;
+        break;
+      }
+    }
+
+    if (existingIdx !== -1) {
+      var existingEmoji = msg.reactions[existingIdx].emoji;
+      if (existingEmoji === emoji) {
+        msg.reactions.splice(existingIdx, 1);
+      } else {
+        msg.reactions[existingIdx].emoji = emoji;
+      }
+    } else {
+      msg.reactions.push({ userId: from, emoji: emoji });
+    }
+
+    // Broadcast to chat room (excluding sender)
+    socket.to(chatId).emit('message-reacted', { messageId, chatId, reactions: msg.reactions });
+    callback({ success: true, reactions: msg.reactions });
+    console.log(`[回应] ${from} ${emoji} → ${messageId}`);
+  });
+
   // ─── Disconnect ──────────────────────────────────────
   socket.on('disconnect', () => {
     if (socket.userId) {
