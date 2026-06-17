@@ -1695,7 +1695,7 @@ function renderMessageHtml(m, chatPartner, isGroup) {
       <div class="message-avatar" style="background:${avatarBg}">${avatarHtml}</div>
       <div class="message-body">
         ${senderName ? `<div style="font-size:.7rem;color:#888;margin-bottom:1px;padding-left:2px">${escapeHtml(senderName)}</div>` : ''}
-        <div class="message-bubble">${escapeHtml(m.text || '')}</div>
+        <div class="message-bubble">${renderMentions(m.text || '')}</div>
         <div class="message-footer">
           <span class="message-time">${timeStr}</span>
           ${statusIcon}
@@ -2911,6 +2911,11 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function renderMentions(text) {
+  var escaped = escapeHtml(text || '');
+  return escaped.replace(/@([^\s<]+)/g, '<span class="mention-highlight">@$1</span>');
 }
 
 function showNotification(title, body) {

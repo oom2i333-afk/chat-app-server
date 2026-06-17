@@ -584,6 +584,9 @@ body {
   display:flex; align-items:center; justify-content:center;
   font-size:.5rem; font-weight:600; color:#fff;
 }
+.mention-highlight {
+  color:#1a73e8; font-weight:500;
+}
 
 /* ─── Toast improvements ──────────────────────────── */
 .wt-toast-container {
