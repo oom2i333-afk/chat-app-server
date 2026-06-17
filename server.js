@@ -1199,6 +1199,84 @@ io.on('connection', (socket) => {
     console.log(`[语音消息] ${from} → ${to}: ${filename} (${duration}s)`);
   });
 
+  // ─── Send file ────────────────────────────────────────────
+  // Ensure uploads/files directory exists
+  const filesDir = path.join(__dirname, 'uploads', 'files');
+  try { fs.mkdirSync(filesDir, { recursive: true }); } catch (e) { /* ignore */ }
+
+  socket.on('send-file', ({ to, dataUrl, fileName, fileSize, mimeType }, callback) => {
+    const from = socket.userId;
+    if (!from || typeof to !== 'string' || typeof dataUrl !== 'string') {
+      return callback?.({ error: '参数不完整' });
+    }
+
+    const estimatedBytes = dataUrl.length * 0.75;
+    if (estimatedBytes > 50 * 1024 * 1024) {
+      return callback?.({ error: '文件不能超过 50MB' });
+    }
+
+    let ext = path.extname(fileName || 'file.bin').toLowerCase() || '.bin';
+    if (!ext || ext === '.') ext = '.bin';
+
+    const base64Data = dataUrl.includes('base64,') ? dataUrl.split('base64,')[1] : dataUrl;
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    const filename = `file_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
+    const filepath = path.join(filesDir, filename);
+
+    try { fs.writeFileSync(filepath, buffer); } catch (e) {
+      return callback?.({ error: '文件保存失败' });
+    }
+
+    const fileUrl = `/uploads/files/${filename}`;
+    const isGroup = to.startsWith('g_');
+    const msg = {
+      id: genMsgId(),
+      from, to,
+      type: 'file',
+      fileName: fileName || '未知文件',
+      fileSize: buffer.length,
+      mimeType: mimeType || 'application/octet-stream',
+      fileUrl,
+      text: fileName || '未知文件',
+      time: Date.now(),
+      status: 'sent',
+      readAt: null,
+      reactions: [],
+    };
+
+    if (isGroup) {
+      const g = groups.get(to);
+      if (!g || !g.members.some(m => m.userId === from)) {
+        try { fs.unlinkSync(filepath); } catch (e) { /* ignore */ }
+        return callback?.({ error: '群组不存在或已退出' });
+      }
+      if (!messages.has(to)) messages.set(to, []);
+      messages.get(to).push(msg);
+      if (messages.get(to).length > 500) messages.set(to, messages.get(to).slice(-500));
+      msg.status = 'delivered';
+      socket.to(to).emit('new-message', msg);
+      callback(msg);
+      console.log(`[文件消息] ${from} → 群 ${to}: ${filename}`);
+      return;
+    }
+
+    // Single chat
+    const targetId = to;
+    const chatId = [from, targetId].sort().join(':');
+    if (!messages.has(chatId)) messages.set(chatId, []);
+    messages.get(chatId).push(msg);
+    if (messages.get(chatId).length > 500) messages.set(chatId, messages.get(chatId).slice(-500));
+
+    msg.status = 'delivered';
+    const targetSocket = getSocketByUserId(targetId);
+    if (targetSocket) {
+      targetSocket.emit('new-message', msg);
+    }
+    callback(msg);
+    console.log(`[文件消息] ${from} → ${targetId}: ${filename}`);
+  });
+
   // ─── Send red packet ────────────────────────────────────
   socket.on('send-redpacket', ({ to, amount, blessing }, callback) => {
     if (typeof to !== 'string') return;

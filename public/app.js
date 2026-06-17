@@ -1542,6 +1542,30 @@ function renderMessages() {
     row.addEventListener('touchend', () => { if (longPressTimer) clearTimeout(longPressTimer); });
     row.addEventListener('touchmove', () => { if (longPressTimer) clearTimeout(longPressTimer); });
   });
+
+  // 绑定文件气泡点击事件（预览/下载）
+  messagesContainer.querySelectorAll('.file-bubble').forEach(function(el) {
+    el.addEventListener('click', function() {
+      var url = el.dataset.url;
+      var mime = el.dataset.mime || '';
+      var name = el.dataset.name || 'file';
+      if (!url) return;
+      if (mime.startsWith('image/')) {
+        showImagePreview(url);
+      } else if (mime.startsWith('video/')) {
+        window.open(url, '_blank');
+      } else if (mime.startsWith('audio/')) {
+        var audio = new Audio(url);
+        audio.play();
+      } else {
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        a.target = '_blank';
+        a.click();
+      }
+    });
+  });
 }
 
 function renderMessageHtml(m, chatPartner, isGroup) {
@@ -1639,6 +1663,31 @@ function renderMessageHtml(m, chatPartner, isGroup) {
       </div>`;
   }
 
+  // 文件消息
+  if (m.type === 'file') {
+    const statusIcon3 = isMine ? getStatusSvg(m.status) : '';
+    const fileIcon = getFileIcon(m.fileName || '');
+    const fileSizeStr = formatFileSize(m.fileSize || 0);
+    return `
+      <div class="message-row ${isMine ? 'mine' : 'other'}" data-msg-id="${m.id}" data-chat-id="${getChatId(currentUser.id, activeChat)}">
+        <div class="message-avatar" style="background:${avatarBg}">${avatarHtml}</div>
+        <div class="message-body">
+          ${senderName ? `<div style="font-size:.7rem;color:#888;margin-bottom:1px;padding-left:2px">${escapeHtml(senderName)}</div>` : ''}
+          <div class="file-bubble ${isMine ? 'mine' : 'other'}" data-url="${m.fileUrl || ''}" data-mime="${m.mimeType || ''}" data-name="${escapeHtml(m.fileName || '')}">
+            <span class="file-icon">${fileIcon}</span>
+            <div class="file-info">
+              <div class="file-name" title="${escapeHtml(m.fileName || '')}">${escapeHtml(m.fileName || '未知文件')}</div>
+              <div class="file-size">${fileSizeStr}</div>
+            </div>
+          </div>
+          <div class="message-footer">
+            <span class="message-time">${timeStr}</span>
+            ${statusIcon3}
+          </div>
+        </div>
+      </div>`;
+  }
+
   // 普通文本消息
   const statusIcon = isMine ? getStatusSvg(m.status) : '';
   return `
@@ -1672,8 +1721,35 @@ function getStatusSvg(status) {
 
 function canRecall(msg) {
   if (msg.from !== currentUser.id) return false;
-  if (msg.type !== 'text' && msg.type !== 'image' && msg.type !== 'voice') return false;
+  if (msg.type !== 'text' && msg.type !== 'image' && msg.type !== 'voice' && msg.type !== 'file') return false;
   return (Date.now() - msg.time) < 180000; // 3分钟
+}
+
+// ─── 文件图标映射 ──────────────────────────────────────────
+function getFileIcon(fileName) {
+  if (!fileName) return '📎';
+  var parts = fileName.split('.');
+  var ext = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
+  var iconMap = {
+    pdf: '📄', doc: '📝', docx: '📝', xls: '📊', xlsx: '📊',
+    ppt: '📑', pptx: '📑', zip: '📦', rar: '📦', '7z': '📦',
+    tar: '📦', gz: '📦', mp4: '🎬', avi: '🎬', mov: '🎬',
+    mkv: '🎬', flv: '🎬', mp3: '🎵', wav: '🎵', flac: '🎵',
+    aac: '🎵', ogg: '🎵', jpg: '🖼️', jpeg: '🖼️', png: '🖼️',
+    gif: '🖼️', webp: '🖼️', svg: '🖼️', txt: '📃', csv: '📃',
+    json: '📋', js: '📋', ts: '📋', html: '🌐', css: '🎨',
+    exe: '⚙️', apk: '📱', dmg: '💿',
+  };
+  return iconMap[ext] || '📎';
+}
+
+function formatFileSize(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  var units = ['B', 'KB', 'MB', 'GB'];
+  var i = 0;
+  var size = bytes;
+  while (size >= 1024 && i < units.length - 1) { size /= 1024; i++; }
+  return size.toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
 }
 
 function scrollToBottom() {
@@ -1764,6 +1840,42 @@ imageInput?.addEventListener('change', function(e) {
   };
   reader.readAsDataURL(file);
   imageInput.value = '';
+});
+
+// ─── File upload ──────────────────────────────────────────
+const fileBtn = $('fileBtn');
+const fileInput = $('fileInput');
+
+fileBtn?.addEventListener('click', function() { fileInput.click(); });
+fileInput?.addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file || !activeChat) return;
+  if (file.size > 50 * 1024 * 1024) { showToast('文件不能超过 50MB', 2000, 'error'); return; }
+
+  showToast('上传中...', 3000);
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    socket.emit('send-file', {
+      to: activeChat,
+      dataUrl: ev.target.result,
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type || 'application/octet-stream'
+    }, function(msg) {
+      if (msg && !msg.error) {
+        var chatId = activeChat.startsWith('g_') ? activeChat : getChatId(currentUser.id, activeChat);
+        if (!messageCache.has(chatId)) messageCache.set(chatId, []);
+        messageCache.get(chatId).push(msg);
+        renderMessages();
+        scrollToBottom();
+        renderChatList();
+      } else {
+        showToast(msg?.error || '文件发送失败', 2000, 'error');
+      }
+    });
+  };
+  reader.readAsDataURL(file);
+  fileInput.value = '';
 });
 
 // ═══════════════════════════════════════════════════════════════
