@@ -1,17 +1,14 @@
 services:
   - type: web
     name: wetalk-server
-    env: java
+    env: docker
     region: singapore
     plan: free
     branch: v4.0-java
-    buildCommand: mvn package -DskipTests
-    startCommand: java -jar target/wetalk-server-4.0.0-SNAPSHOT.jar --spring.profiles.active=dev
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: dev
       - key: JWT_SECRET
         generateValue: true
-      - key: PORT
-        value: 8080
