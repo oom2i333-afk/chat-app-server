@@ -1,10 +1,12 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "NIXPACKS",
+    "buildCommand": "mvn package -DskipTests"
   },
   "deploy": {
     "numReplicas": 1,
+    "startCommand": "java -jar target/wetalk-server-4.0.0-SNAPSHOT.jar",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
     "healthcheckPath": "/api/health",
