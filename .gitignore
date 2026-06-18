@@ -6,3 +6,6 @@ wetalk-server/target/
 *.jar
 *.exe
 *.dll
+
+target/
+*.jar
