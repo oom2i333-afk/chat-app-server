@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wetalk.modules.user.mapper.UserMapper">
+    <select id="findByPhoneHash" resultType="com.wetalk.modules.user.entity.User">
+        SELECT * FROM `user` WHERE phone_hash = #{phoneHash} AND deleted_at IS NULL
+    </select>
+    <select id="findByUid" resultType="com.wetalk.modules.user.entity.User">
+        SELECT * FROM `user` WHERE uid = #{uid} AND deleted_at IS NULL
+    </select>
+</mapper>

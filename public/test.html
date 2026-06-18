@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test</title></head>
+<body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#07c160;font-family:sans-serif">
+<div style="background:#fff;padding:2rem;border-radius:16px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.1)">
+  <h1 style="color:#07c160;margin:0 0 .5rem">✅ WeTalk 测试页</h1>
+  <p style="color:#666">如果能看到这个页面，说明 Railway 服务正常</p>
+  <button onclick="alert('按钮可用！')" style="margin-top:1rem;padding:.6rem 1.5rem;border:none;border-radius:10px;background:#07c160;color:#fff;font-size:1rem;cursor:pointer">点我测试</button>
+  <p id="status" style="margin-top:.5rem;font-size:.8rem;color:#999"></p>
+</div>
+<script>
+document.getElementById('status').textContent = 'JavaScript 执行正常 | ' + new Date().toLocaleString();
+</script>
+</body>
+</html>

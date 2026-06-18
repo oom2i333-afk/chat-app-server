@@ -1,0 +1,92 @@
+{
+  "time": 1781789351265,
+  "users": [
+    [
+      "13800001111",
+      {
+        "id": "13800001111",
+        "name": "用户1111",
+        "phone": "13800001111",
+        "avatar": null,
+        "avatarColor": "#1abc9c",
+        "avatarChar": "1",
+        "gender": "",
+        "realName": "",
+        "idCard": "",
+        "realNameVerified": false,
+        "verificationStatus": "none",
+        "status": "active",
+        "online": false,
+        "socketId": null,
+        "accountType": "internal",
+        "balance": 0,
+        "points": 0,
+        "inviteCode": "888888",
+        "inviter": null,
+        "createdAt": 1781526312821
+      }
+    ],
+    [
+      "13900001111",
+      {
+        "id": "13900001111",
+        "name": "用户1111",
+        "phone": "13900001111",
+        "avatar": null,
+        "avatarColor": "#e67e22",
+        "avatarChar": "1",
+        "gender": "",
+        "realName": "",
+        "idCard": "",
+        "realNameVerified": false,
+        "verificationStatus": "none",
+        "status": "active",
+        "online": false,
+        "socketId": null,
+        "accountType": "internal",
+        "balance": 0,
+        "points": 0,
+        "inviteCode": "888888",
+        "inviter": null,
+        "createdAt": 1781526643637
+      }
+    ],
+    [
+      "13826775434",
+      {
+        "id": "13826775434",
+        "name": "测试用户",
+        "phone": "13826775434",
+        "avatar": null,
+        "avatarColor": "#e67e22",
+        "avatarChar": "测",
+        "gender": "male",
+        "realName": "",
+        "idCard": "",
+        "realNameVerified": false,
+        "verificationStatus": "none",
+        "status": "active",
+        "online": false,
+        "socketId": null,
+        "accountType": "internal",
+        "balance": 0,
+        "points": 0,
+        "inviteCode": "888888",
+        "inviter": null,
+        "createdAt": 1781526778279
+      }
+    ]
+  ],
+  "messages": [],
+  "groups": [],
+  "redPackets": [],
+  "inviteCodes": [
+    "888888",
+    "666666",
+    "123456"
+  ],
+  "friendRequests": [],
+  "friends": [],
+  "signIns": [],
+  "chatSettings": []
+}

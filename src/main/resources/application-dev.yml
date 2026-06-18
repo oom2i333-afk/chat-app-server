@@ -1,0 +1,35 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:h2:mem:wetalk;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.h2
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+
+jwt:
+  secret: wetalk-dev-secret-key-32bytes-long-!!123456
+
+oss:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket: wetalk-dev
+
+sms:
+  access-key: dev
+  secret-key: dev
+  sign-name: WeTalk
+  template-code: SMS_DEV
+
+logging:
+  level:
+    com.wetalk: DEBUG

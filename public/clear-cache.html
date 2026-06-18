@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>正在清除缓存...</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f0f2f5;color:#333}
+.card{background:#fff;border-radius:16px;padding:2rem;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.08);max-width:400px}
+.spinner{width:40px;height:40px;border:3px solid #e0e0e0;border-top-color:#07c160;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 1rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+h2{font-size:1.1rem;margin-bottom:.5rem}
+p{font-size:.85rem;color:#666;line-height:1.6}
+.done{color:#07c160;font-size:3rem;margin-bottom:.5rem}
+.btn{margin-top:1rem;padding:.6rem 1.5rem;border:none;border-radius:10px;background:#07c160;color:#fff;font-size:.9rem;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="status">
+    <div class="spinner"></div>
+    <h2>正在清除缓存...</h2>
+    <p>请稍候，正在清理 Service Worker 缓存</p>
+  </div>
+</div>
+
+<script>
+(async function() {
+  const status = document.getElementById('status');
+
+  // 1. 清除所有 caches
+  if ('caches' in window) {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => caches.delete(k)));
+    console.log('已清除', keys.length, '个缓存');
+  }
+
+  // 2. 注销所有 Service Worker
+  if ('serviceWorker' in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map(r => r.unregister()));
+    console.log('已注销', registrations.length, '个 SW');
+  }
+
+  // 3. 显示完成
+  status.innerHTML = `
+    <div class="done">✅</div>
+    <h2>缓存已清除</h2>
+    <p>已清除 ${await caches.keys().then(k => k.length)} 个缓存<br>
+    已注销所有 Service Worker</p>
+    <button class="btn" onclick="window.location.href='/'">进入 WeTalk</button>
+  `;
+})();
+</script>
+</body>
+</html>

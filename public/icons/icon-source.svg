@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- 背景圆 -->
+  <rect x="0" y="0" width="512" height="512" rx="96" fill="#1aad19"/>
+  <!-- 安全遮罩（用于 maskable 裁剪指示器） -->
+  <circle cx="256" cy="256" r="205" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-dasharray="8,4"/>
+  <!-- 聊天气泡 -->
+  <path d="M160 380 L160 320 Q110 310 90 275 Q70 240 80 200 Q90 160 125 135 Q160 110 210 105 L256 100 L302 105 Q352 110 387 135 Q422 160 432 200 Q442 240 422 275 Q402 310 352 320 L352 380 L292 340 L256 338 L220 340 Z" fill="#fff" opacity="0.95"/>
+  <!-- W 文字 -->
+  <text x="256" y="275" font-family="Arial,sans-serif" font-weight="900" font-size="170" fill="#1aad19" text-anchor="middle" dominant-baseline="central">W</text>
+  <!-- 装饰气泡 -->
+  <circle cx="150" cy="190" r="10" fill="rgba(255,255,255,0.3)"/>
+  <circle cx="200" cy="220" r="7" fill="rgba(255,255,255,0.25)"/>
+  <circle cx="310" cy="200" r="8" fill="rgba(255,255,255,0.3)"/>
+</svg>

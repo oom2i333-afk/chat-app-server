@@ -1,0 +1,26 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${MYSQL_URL}
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASS}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASS}
+
+jwt:
+  secret: ${JWT_SECRET}
+
+oss:
+  endpoint: ${OSS_ENDPOINT}
+  access-key: ${OSS_ACCESS_KEY}
+  secret-key: ${OSS_SECRET_KEY}
+  bucket: ${OSS_BUCKET}
+
+logging:
+  level:
+    com.wetalk: INFO

@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- PWA / Open Graph 元标签 -->
+<meta name="theme-color" content="#2e2e2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WeTalk">
+<meta name="application-name" content="WeTalk">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<meta name="HandheldFriendly" content="true">
+<meta name="apple-itunes-app" content="app-id=wetalk">
+<!-- Windows / IE 固定磁贴 -->
+<meta name="msapplication-TileColor" content="#07c160">
+<meta name="msapplication-TileImage" content="/icons/icon-144.png">
+<meta name="msapplication-config" content="none">
+<!-- Open Graph -->
+<meta property="og:title" content="WeTalk - 畅聊">
+<meta property="og:description" content="安全·畅聊·自在 - 类微信聊天应用">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://chat-app-server-production-a0da.up.railway.app">
+<meta property="og:image" content="/icons/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:locale" content="zh_CN">
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="WeTalk - 畅聊">
+<meta name="twitter:description" content="安全·畅聊·自在 - 类微信聊天应用">
+<meta name="twitter:image" content="/icons/icon-512.png">
+<!-- 启动屏幕 - iOS -->
+<link rel="apple-touch-startup-image" href="/icons/icon-512.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+<!-- PWA manifest & Service Worker -->
+<link rel="manifest" href="/manifest.json">
+<link rel="serviceworker" href="/sw.js">
+<!-- Apple touch icons (所有尺寸) -->
+<link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="120x120" href="/icons/icon-128.png">
+<link rel="apple-touch-icon" sizes="76x76" href="/icons/icon-72.png">
+<!-- 浏览器图标 -->
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-48.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-48.png">
+<link rel="icon" type="image/png" sizes="144x144" href="/icons/icon-144.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+<!-- 注册 Service Worker (非阻塞，永不自动刷新页面) -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('[PWA] SW registered:', reg.scope))
+        .catch(err => console.warn('[PWA] SW registration failed:', err));
+    });
+  }
+</script>
+<title>WeTalk - 畅聊</title>
+<link rel="stylesheet" href="style.css?v=2.1">
+<link rel="stylesheet" href="webrtc.css?v=2.1">
+<!-- Bootstrap + 图标 CSS 登录成功后才加载 -->
+<script>
+window._loadResources = function() {
+  // Bootstrap CSS
+  var bs = document.createElement('link');
+  bs.rel = 'stylesheet'; bs.href = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css';
+  document.head.appendChild(bs);
+  // Bootstrap Icons
+  var bi = document.createElement('link');
+  bi.rel = 'stylesheet'; bi.href = 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css';
+  document.head.appendChild(bi);
+  // Bootstrap JS (defer)
+  var bj = document.createElement('script');
+  bj.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js';
+  bj.defer = true; document.body.appendChild(bj);
+  // webrtc.js
+  var wj = document.createElement('script');
+  wj.src = 'webrtc.js?v=2.1'; document.body.appendChild(wj);
+};
+</script>
+</head>
+<body>
+
+<!-- ═══ 加载遮罩 ═══ -->
+<div id="loadingOverlay" class="loading-overlay" style="display:none">
+  <div class="loading-spinner"><div class="spinner"></div><p id="loadingText">加载中...</p></div>
+</div>
+
+<!-- ═══ 登录/注册页 ═══ -->
+<div id="loginPage" class="page active">
+  <div class="login-bg"><div class="login-bg-pattern"></div></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <h1>WeTalk</h1>
+      <p class="login-subtitle">安全 · 畅聊 · 自在</p>
+    </div>
+    <div class="login-tabs">
+      <button class="login-tab active" data-tab="login">登录</button>
+      <button class="login-tab" data-tab="register">注册</button>
+    </div>
+
+    <!-- 登录表单（无验证码 — 登录用速率限制保护） -->
+    <div id="loginForm" class="login-form active">
+      <div class="input-group"><input type="tel" id="loginPhone" placeholder="手机号" maxlength="11" autofocus></div>
+      <div class="input-group" style="position:relative"><input type="password" id="loginPassword" placeholder="密码" maxlength="64"><span class="pw-toggle" id="loginPwToggle">👁</span></div>
+      <div id="loginError" class="form-error"></div>
+      <button id="loginBtn" class="btn-primary">登 录</button>
+      <p class="login-tip" style="cursor:pointer" id="forgotPwdLink">忘记密码？</p>
+    </div>
+
+    <!-- 注册表单 -->
+    <div id="registerForm" class="login-form">
+      <div class="input-group"><input type="tel" id="regPhone" placeholder="手机号" maxlength="11"></div>
+      <div class="input-group" style="position:relative"><input type="password" id="regPassword" placeholder="设置密码（8-64位，需字母+数字）" maxlength="64"><span class="pw-toggle" id="regPwToggle">👁</span></div>
+      <div class="input-group" style="position:relative"><input type="password" id="regConfirm" placeholder="确认密码" maxlength="64"></div>
+      <div class="input-group captcha-group"><input type="text" id="regCaptcha" placeholder="验证码" maxlength="6"><span class="captcha-img" id="regCaptchaImg" style="cursor:pointer">点我刷新</span></div>
+      <div class="input-group"><input type="text" id="regInvite" placeholder="邀请码（必填）" maxlength="6"></div>
+      <div id="regError" class="form-error"></div>
+      <button id="registerBtn" class="btn-primary">注 册</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 完善资料页 ═══ -->
+<div id="profilePage" class="page">
+  <div class="login-bg"><div class="login-bg-pattern"></div></div>
+  <div class="login-card">
+    <div class="login-logo"><h1>完善资料</h1><p class="login-subtitle">设置你的个人资料</p></div>
+    <div style="text-align:center">
+      <div class="pp-setup-avatar" id="setupAvatar"><span id="setupAvatarChar">?</span><div class="pp-setup-overlay">📷</div></div>
+      <input type="file" id="setupAvatarInput" accept="image/*" hidden>
+      <div style="display:flex;gap:.5rem;justify-content:center;margin:.8rem 0">
+        <button class="gender-btn" data-gender="male" id="genderMale">🙋 男</button>
+        <button class="gender-btn" data-gender="female" id="genderFemale">🙆 女</button>
+      </div>
+      <div class="input-group"><input type="text" id="setupName" placeholder="输入昵称（选填）" maxlength="12"></div>
+      <div id="setupError" class="form-error"></div>
+      <button id="setupCompleteBtn" class="btn-primary">进入 WeTalk</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 主界面 -->
+<!-- ============================================================ -->
+<div id="mainPage" class="page">
+
+  <!-- ═══ 侧边栏 ═══ -->
+  <div id="sidebar" class="sidebar">
+    <!-- 用户信息头 -->
+    <div class="sidebar-profile" id="sidebarProfile">
+      <div class="profile-avatar" id="profileAvatar">
+        <span id="profileAvatarChar">U</span>
+        <div class="profile-avatar-badge">
+          <svg viewBox="0 0 16 16" width="10" height="10"><circle cx="8" cy="8" r="7" fill="#fff"/><path d="M4 8l3 3 5-6" stroke="#1aad19" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="profile-info">
+        <div class="profile-name" id="profileName">用户昵称</div>
+        <div class="profile-status" id="profileStatus">在线</div>
+      </div>
+      <div class="profile-actions">
+        <button class="header-btn" id="createGroupBtn" title="创建群聊" data-bs-toggle="tooltip">
+        <i class="bi bi-plus-circle"></i>
+        </button>
+        <button class="header-btn" id="scanQrBtn" title="扫一扫" data-bs-toggle="tooltip">
+        <i class="bi bi-qr-code-scan"></i>
+        </button>
+        <button class="header-btn" id="addContactBtn2" title="添加联系人" data-bs-toggle="tooltip">
+        <i class="bi bi-person-plus"></i>
+        </button>
+        <button class="header-btn" id="logoutBtn" title="退出登录" data-bs-toggle="tooltip">
+        <i class="bi bi-box-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- 搜索 -->
+    <div class="search-box">
+      <i class="bi bi-search search-icon"></i>
+      <input type="text" id="searchChat" placeholder="搜索聊天">
+    </div>
+
+    <!-- Tab -->
+    <div class="tabs">
+      <button class="tab active" data-tab="chats">
+        <i class="bi bi-chat-dots"></i>
+        聊天
+      </button>
+      <button class="tab" data-tab="contacts">
+        <i class="bi bi-people"></i>
+        通讯录
+      </button>
+      <button class="tab" data-tab="profile">
+        <i class="bi bi-person"></i>
+        我的
+      </button>
+    </div>
+
+    <!-- Tab 内容 -->
+    <div id="chatList" class="tab-content active scrollable"></div>
+    <div id="contactList" class="tab-content scrollable"></div>
+
+    <!-- 个人资料面板 -->
+    <div id="profilePanel" class="tab-content scrollable">
+      <div class="profile-panel">
+        <div class="pp-avatar-section" id="ppAvatarSection">
+          <div class="pp-avatar" id="ppAvatar">
+            <span id="ppAvatarChar">U</span>
+            <div class="pp-avatar-overlay">
+              <i class="bi bi-camera" style="color:#fff;font-size:1.2rem"></i>
+            </div>
+          </div>
+          <div class="pp-change-avatar" id="ppChangeAvatar">点击更换头像</div>
+          <input type="file" id="avatarInput" accept="image/*" hidden>
+        </div>
+
+        <div class="pp-section">
+          <div class="pp-row" id="ppEditName">
+            <span class="pp-label">昵称</span>
+            <div class="pp-value">
+              <span id="ppName">用户昵称</span>
+              <i class="bi bi-pencil"></i>
+            </div>
+          </div>
+          <div class="pp-row">
+            <span class="pp-label">手机号</span>
+            <span class="pp-value" id="ppPhone">138****0000</span>
+          </div>
+          <div class="pp-row">
+            <span class="pp-label">性别</span>
+            <span class="pp-value" id="ppGender">未设置</span>
+          </div>
+          <div class="pp-row" id="ppRealNameRow">
+            <span class="pp-label">实名认证</span>
+            <div class="pp-value" id="ppRealNameStatus">
+              <span class="realname-badge unverified">未认证</span>
+              <i class="bi bi-chevron-right"></i>
+            </div>
+          </div>
+          <div class="pp-row">
+            <span class="pp-label">积分</span>
+            <span class="pp-value" id="ppPoints">0</span>
+          </div>
+          <div class="pp-row" id="ppFavRow" style="cursor:pointer">
+            <span class="pp-label">⭐ 我的收藏</span>
+            <span class="pp-value"><i class="bi bi-chevron-right"></i></span>
+          </div>
+          <div class="pp-row" id="ppQrRow" style="cursor:pointer">
+            <span class="pp-label">📱 我的二维码</span>
+            <span class="pp-value"><i class="bi bi-chevron-right"></i></span>
+          </div>
+          <div class="pp-row" id="ppPwdRow" style="cursor:pointer">
+            <span class="pp-label">🔑 修改密码</span>
+            <span class="pp-value"><i class="bi bi-chevron-right"></i></span>
+          </div>
+          <div class="pp-row">
+            <span class="pp-label">红包余额</span>
+            <span class="pp-value" id="ppBalance">¥0.00</span>
+          </div>
+          <div class="pp-row" style="justify-content:center;border-bottom:none;padding:.5rem 0 0">
+            <button class="gi-action-btn" onclick="doCheckIn()" style="font-size:.8rem">📅 每日签到</button>
+          </div>
+        </div>
+
+        <button class="pp-logout" id="ppLogout">
+          <i class="bi bi-box-arrow-right"></i>
+          退出登录
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 好友申请页（在侧栏内） -->
+  <div id="friendRequestPage" class="tab-content scrollable">
+    <div style="padding:.5rem .8rem">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
+        <button id="frBackBtn" style="background:none;border:none;color:#aaa;font-size:1.1rem;cursor:pointer">←</button>
+        <span style="font-size:.9rem;font-weight:600;color:#ddd">新的朋友</span>
+      </div>
+      <div id="friendRequestList"></div>
+    </div>
+  </div>
+
+  <!-- 收藏页 -->
+  <div id="favoritesPage" class="tab-content scrollable">
+    <div style="padding:.5rem .8rem">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
+        <button id="favBackBtn" style="background:none;border:none;color:#aaa;font-size:1.1rem;cursor:pointer">←</button>
+        <span style="font-size:.9rem;font-weight:600;color:#ddd">我的收藏</span>
+      </div>
+      <div id="favoritesList"></div>
+    </div>
+  </div>
+
+  <!-- ═══ 聊天区 ═══ -->
+  <div class="chat-area">
+    <!-- 空状态 -->
+    <div id="emptyState" class="empty-state">
+      <div class="empty-icon empty-icon-chat">
+        <svg viewBox="0 0 140 140" width="140" height="140" fill="none">
+          <rect x="20" y="25" width="100" height="75" rx="14" fill="#e8f5e9" stroke="#c8e6c9" stroke-width="2"/>
+          <circle cx="48" cy="52" r="4" fill="#1aad19" opacity="0.4"/>
+          <circle cx="62" cy="52" r="4" fill="#1aad19" opacity="0.6"/>
+          <circle cx="76" cy="52" r="4" fill="#1aad19" opacity="0.8"/>
+          <circle cx="90" cy="52" r="4" fill="#1aad19"/>
+          <rect x="42" y="66" width="56" height="3" rx="1.5" fill="#c8e6c9"/>
+          <rect x="42" y="74" width="40" height="3" rx="1.5" fill="#c8e6c9"/>
+          <rect x="42" y="82" width="48" height="3" rx="1.5" fill="#c8e6c9"/>
+          <path d="M70 100l-10 12h20l-10-12z" fill="#c8e6c9"/>
+          <circle cx="112" cy="62" r="16" fill="#1aad19" opacity="0.12"/>
+          <path d="M107 62h10M112 57v10" stroke="#1aad19" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+        </svg>
+      </div>
+      <p class="empty-title">选择一个好友开始聊天</p>
+      <p class="empty-desc">从左侧选择聊天，或点击 ➕ 添加好友</p>
+    </div>
+
+    <!-- 聊天窗口 -->
+    <div id="chatWindow" class="chat-window" style="display:none">
+      <div class="chat-header">
+        <button class="mobile-back" id="mobileBack">
+        <i class="bi bi-chevron-left"></i>
+        </button>
+        <div class="chat-header-avatar" id="chatAvatar">U</div>
+        <div class="chat-header-info">
+          <div class="chat-header-name" id="chatName">用户</div>
+          <div class="chat-header-status" id="chatStatus">离线</div>
+        </div>
+        <div class="chat-header-actions">
+          <button class="header-btn" id="chatVoiceCallBtn" title="语音通话">
+            <i class="bi bi-telephone"></i>
+          </button>
+          <button class="header-btn" id="chatVideoCallBtn" title="视频通话">
+            <i class="bi bi-camera-video"></i>
+          </button>
+          <button class="header-btn" id="chatSearchBtn" title="搜索消息">
+            <i class="bi bi-search"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Message search bar (hidden by default) -->
+      <div id="msgSearchBar" class="msg-search-bar" style="display:none">
+        <i class="bi bi-search msg-search-icon"></i>
+        <input type="text" id="msgSearchInput" placeholder="搜索消息..." autocomplete="off">
+        <span class="msg-search-count" id="msgSearchCount"></span>
+        <div class="msg-search-nav">
+          <button id="msgSearchUp" class="msg-search-nav-btn" title="上一个"><i class="bi bi-chevron-up"></i></button>
+          <button id="msgSearchDown" class="msg-search-nav-btn" title="下一个"><i class="bi bi-chevron-down"></i></button>
+        </div>
+        <button id="msgSearchClose" class="msg-search-close"><i class="bi bi-x"></i></button>
+      </div>
+
+      <!-- Selection mode toolbar (hidden by default) -->
+      <div id="selectionToolbar" class="selection-toolbar" style="display:none">
+        <span id="selectionCount" class="selection-count">已选 0 条</span>
+        <button class="selection-action" id="selectionDelete"><i class="bi bi-trash"></i> 删除</button>
+        <button class="selection-action" id="selectionForward"><i class="bi bi-forward"></i> 转发</button>
+        <button class="selection-action" id="selectionCancel"><i class="bi bi-x-lg"></i> 取消</button>
+      </div>
+
+      <div class="messages-container" id="messagesContainer">
+        <!-- Loading skeleton displayed while messages load -->
+        <div id="msgLoadingSkeleton" class="msg-loading-skeleton" style="display:none">
+          <div class="skeleton-row"><div class="skeleton-avatar"></div><div class="skeleton-line skeleton-line-1"></div></div>
+          <div class="skeleton-row mine"><div class="skeleton-line skeleton-line-2"></div><div class="skeleton-avatar"></div></div>
+          <div class="skeleton-row"><div class="skeleton-avatar"></div><div class="skeleton-line skeleton-line-3"></div></div>
+          <div class="skeleton-row mine"><div class="skeleton-line skeleton-line-4"></div><div class="skeleton-avatar"></div></div>
+          <div class="skeleton-row"><div class="skeleton-avatar"></div><div class="skeleton-line skeleton-line-1"></div></div>
+        </div>
+      </div>
+      <div class="typing-indicator" id="typingIndicator"></div>
+
+      <div class="input-area">
+        <button class="input-action-btn" id="emojiBtn" title="表情">
+        <i class="bi bi-emoji-smile"></i>
+        </button>
+        <button class="input-action-btn" id="imageBtn" title="发送图片">
+        <i class="bi bi-image"></i>
+        </button>
+        <button class="input-action-btn" id="fileBtn" title="发送文件">
+        <i class="bi bi-paperclip"></i>
+        </button>
+        <input type="file" id="fileInput" hidden>
+        <input type="file" id="imageInput" accept="image/*" hidden>
+        <button class="input-action-btn" id="voiceBtn" title="语音消息">
+        <i class="bi bi-mic"></i>
+        </button>
+        <button class="input-action-btn" id="redpacketBtn" title="红包">
+        <i class="bi bi-gift"></i>
+        </button>
+        <div class="input-wrapper">
+          <input type="text" id="messageInput" placeholder="输入消息..." maxlength="1000" autocomplete="off">
+        </div>
+        <button class="send-btn" id="sendBtn">发送</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 录音遮罩 ═══ -->
+<div id="recordingOverlay" class="recording-overlay" style="display:none">
+  <div class="recording-indicator">
+    <div class="recording-wave"><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="recording-timer" id="recordingTimer">0:00</div>
+    <div class="recording-hint">松开发送 · 上滑取消</div>
+  </div>
+</div>
+<audio id="voicePlayer" hidden></audio>
+
+<!-- ============================================================ -->
+<!-- Emoji 面板 -->
+<!-- ============================================================ -->
+<div id="emojiPanel" class="emoji-panel" style="display:none">
+  <div class="emoji-categories">
+    <button class="emoji-cat active" data-cat="all">😃</button>
+    <button class="emoji-cat" data-cat="faces">😊</button>
+    <button class="emoji-cat" data-cat="hearts">❤️</button>
+    <button class="emoji-cat" data-cat="hands">👋</button>
+    <button class="emoji-cat" data-cat="animals">🐱</button>
+  </div>
+  <div class="emoji-grid" id="emojiGrid"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 发送红包弹窗 -->
+<!-- ============================================================ -->
+<div id="redpacketModal" class="wt-modal modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-overlay" id="rpModalOverlay"></div>
+  <div class="rp-modal">
+    <div class="rp-header">
+      <div class="rp-close" id="rpClose">✕</div>
+      <div class="rp-title">发红包</div>
+      <div class="rp-icon">🧧</div>
+    </div>
+    <div class="rp-body">
+      <div class="rp-to" id="rpTo">发给：用户</div>
+      <div class="rp-amount-group">
+        <span class="rp-amount-sign">¥</span>
+        <input type="number" id="rpAmount" placeholder="0.00" step="0.01" min="0.01" max="200">
+      </div>
+      <div class="rp-amount-hint">单个红包金额上限 200 元</div>
+      <div class="rp-fast-amounts">
+        <button class="rp-fast" data-amt="1">¥1</button>
+        <button class="rp-fast" data-amt="5">¥5</button>
+        <button class="rp-fast" data-amt="10">¥10</button>
+        <button class="rp-fast" data-amt="20">¥20</button>
+        <button class="rp-fast" data-amt="66.66">¥66.66</button>
+        <button class="rp-fast" data-amt="88.88">¥88.88</button>
+      </div>
+      <div class="input-group" style="margin-top:.8rem">
+        <input type="text" class="form-control" id="rpBlessing" placeholder="添加祝福语（选填）" maxlength="30">
+      </div>
+      <button id="rpSendBtn" class="rp-send-btn">塞进红包</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 打开红包弹窗 -->
+<!-- ============================================================ -->
+<div id="openRpOverlay" class="rp-open-overlay" style="display:none">
+  <div class="rp-open-bg"></div>
+  <div class="rp-open-content">
+    <div class="rp-open-card" id="rpOpenCard">
+      <div class="rp-open-unopened" id="rpOpenUnopened">
+        <div class="rp-open-icon">🧧</div>
+        <div class="rp-open-sender" id="rpOpenSender">用户</div>
+        <div class="rp-open-blessing" id="rpOpenBlessing">恭喜发财，大吉大利</div>
+        <button class="rp-open-btn" id="rpOpenBtn">开</button>
+      </div>
+      <div class="rp-open-result" id="rpOpenResult" style="display:none">
+        <div class="rp-result-icon">🧧</div>
+        <div class="rp-result-label">恭喜发财</div>
+        <div class="rp-result-amount" id="rpResultAmount">¥0.00</div>
+        <div class="rp-result-from" id="rpResultFrom">来自 用户的红包</div>
+        <button class="rp-result-close" id="rpResultClose">知道了</button>
+      </div>
+    </div>
+    <div class="rp-open-close" id="rpOpenClose">✕</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 编辑昵称弹窗 -->
+<!-- ============================================================ -->
+<div id="nameEditModal" class="wt-modal modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-overlay" id="nameModalOverlay"></div>
+  <div class="wt-modal-content" style="max-width:340px">
+    <div class="wt-modal-header">
+      <h3>修改昵称</h3>
+      <button class="modal-close btn-close" id="nameModalClose">✕</button>
+    </div>
+    <div class="wt-modal-body">
+      <div class="input-group">
+        <input type="text" class="form-control" id="nameEditInput" placeholder="输入新昵称" maxlength="16">
+      </div>
+      <button id="nameSaveBtn" class="btn-primary" style="margin-top:.8rem">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 实名认证弹窗 -->
+<!-- ============================================================ -->
+<div id="realnameModal" class="wt-modal modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-overlay" id="realnameOverlay"></div>
+  <div class="wt-modal-content" style="max-width:340px">
+    <div class="wt-modal-header">
+      <h3>实名认证</h3>
+      <button class="modal-close btn-close" id="realnameClose">✕</button>
+    </div>
+    <div class="wt-modal-body">
+      <p style="font-size:.82rem;color:#666;margin-bottom:1rem;line-height:1.5">
+        根据监管要求，使用红包功能需完成实名认证。您的信息仅用于身份验证。
+      </p>
+      <div class="input-group">
+        <input type="text" class="form-control" id="realnameInput" placeholder="请输入真实姓名" maxlength="20">
+      </div>
+      <div class="input-group" style="margin-top:.6rem">
+        <input type="text" class="form-control" id="idcardInput" placeholder="请输入身份证号" maxlength="18">
+      </div>
+      <button id="realnameSubmitBtn" class="btn-primary" style="margin-top:.8rem">提交认证</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 添加联系人弹窗 -->
+<!-- ============================================================ -->
+<div id="addContactModal" class="wt-modal modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-overlay" id="modalOverlay"></div>
+  <div class="wt-modal-content">
+    <div class="wt-modal-header">
+      <h3>添加联系人</h3>
+      <button class="modal-close btn-close" id="modalClose">✕</button>
+    </div>
+    <div class="wt-modal-body">
+      <div class="input-group">
+        <input type="text" class="form-control" id="searchUserInput" placeholder="搜索用户名或手机号..." autocomplete="off">
+      </div>
+      <div id="searchResults" class="search-results"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 创建群聊弹窗 -->
+<!-- ============================================================ -->
+<div id="createGroupModal" class="wt-modal modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-overlay" id="cgModalOverlay"></div>
+  <div class="wt-modal-content" style="max-width:380px">
+    <div class="wt-modal-header">
+      <h3>创建群聊</h3>
+      <button class="modal-close btn-close" id="cgModalClose">✕</button>
+    </div>
+    <div class="wt-modal-body">
+      <div class="input-group">
+        <input type="text" class="form-control" id="cgNameInput" placeholder="输入群名称" maxlength="20">
+      </div>
+      <p style="font-size:.78rem;color:#888;margin:.4rem 0 .3rem">选择群成员（至少选1人）</p>
+      <div class="input-group">
+        <input type="text" class="form-control" id="cgSearchInput" placeholder="搜索联系人..." autocomplete="off">
+      </div>
+      <div id="cgContactList" class="cg-contact-list"></div>
+      <button id="cgCreateBtn" class="btn-primary" style="margin-top:.5rem">创建群聊</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 群信息弹窗 -->
+<!-- ============================================================ -->
+<div id="groupInfoModal" class="wt-modal modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-overlay" id="giModalOverlay"></div>
+  <div class="wt-modal-content" style="max-width:360px">
+    <div class="wt-modal-header">
+      <h3>群聊信息</h3>
+      <button class="modal-close btn-close" id="giModalClose">✕</button>
+    </div>
+    <div class="wt-modal-body">
+      <div style="text-align:center;padding:.5rem 0">
+        <div class="gi-avatar" id="giAvatar">群</div>
+        <div class="gi-name" id="giName">群名称</div>
+        <div class="gi-count" id="giCount">0 位成员</div>
+      </div>
+      <div class="gi-actions" id="giActions"></div>
+      <div class="gi-members" id="giMembers"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 右键菜单 -->
+<div id="contextMenu" class="ctx-menu" style="display:none">
+  <div class="ctx-item" id="ctxReply">💬 回复</div>
+  <div class="ctx-item" id="ctxForward">📤 转发</div>
+  <div class="ctx-item" id="ctxFavorite">⭐ 收藏</div>
+  <div class="ctx-item" id="ctxCopy">📋 复制</div>
+  <div class="ctx-item" id="ctxDelete">🗑 删除</div>
+</div>
+
+<!-- 转发弹窗 -->
+<div id="forwardModal" class="wt-modal modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-overlay" id="fwModalOverlay"></div>
+  <div class="wt-modal-content" style="max-width:340px">
+    <div class="wt-modal-header"><h3>转发消息</h3><button class="modal-close btn-close" id="fwModalClose">✕</button></div>
+    <div class="wt-modal-body">
+      <div class="input-group"><input type="text" class="form-control" id="fwSearch" placeholder="搜索好友..." autocomplete="off"></div>
+      <div id="fwContactList" style="max-height:260px;overflow-y:auto;margin-top:.3rem"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 修改密码弹窗 -->
+<div id="changePwdModal" class="wt-modal modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-overlay" id="cpModalOverlay"></div>
+  <div class="wt-modal-content" style="max-width:340px">
+    <div class="wt-modal-header"><h3>修改密码</h3><button class="modal-close btn-close" id="cpModalClose">✕</button></div>
+    <div class="wt-modal-body">
+      <div class="input-group"><input type="password" class="form-control" id="cpOldPwd" placeholder="原密码" maxlength="64"></div>
+      <div class="input-group" style="margin-top:.5rem"><input type="password" class="form-control" id="cpNewPwd" placeholder="新密码（8-64位，需字母+数字）" maxlength="64"></div>
+      <div class="input-group" style="margin-top:.5rem"><input type="password" class="form-control" id="cpConfirmPwd" placeholder="确认新密码" maxlength="64"></div>
+      <div id="cpError" class="form-error"></div>
+      <button id="cpSaveBtn" class="btn-primary" style="margin-top:.5rem">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- Toast 提示 -->
+<!-- ============================================================ -->
+<div id="toastContainer" class="wt-toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/socket.io@4.8.3/client-dist/socket.io.min.js"></script>
+<script src="app.js?v=2.1"></script>
+</body>
+</html>

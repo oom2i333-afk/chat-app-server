@@ -1,0 +1,20 @@
+syntax = "proto3";
+package wetalk.im;
+
+option java_package = "com.wetalk.im.codec";
+option java_outer_classname = "ImProtocol";
+
+message ImPacket {
+    Header header = 1;
+    bytes payload = 2;
+}
+
+message Header {
+    int32 cmd = 1;
+    string msgId = 2;
+    string fromUid = 3;
+    string toUid = 4;
+    int64 timestamp = 5;
+    int64 seqId = 6;
+    string devId = 7;
+}

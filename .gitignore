@@ -1,0 +1,8 @@
+﻿node_modules/
+
+desktop/dist/
+mobile/cmdline-tools.zip
+wetalk-server/target/
+*.jar
+*.exe
+*.dll

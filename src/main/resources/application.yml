@@ -1,0 +1,63 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: wetalk-server
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DB:wetalk}?useSSL=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASS:root}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 10000
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASS:}
+      timeout: 3000
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 4
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.wetalk.modules.*.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+jwt:
+  secret: ${JWT_SECRET:wetalk-default-secret-key-change-in-production-32chars}
+  access-token-expiration: 900000
+  refresh-token-expiration: 604800000
+
+oss:
+  endpoint: ${OSS_ENDPOINT:oss-cn-hangzhou.aliyuncs.com}
+  access-key: ${OSS_ACCESS_KEY:}
+  secret-key: ${OSS_SECRET_KEY:}
+  bucket: ${OSS_BUCKET:wetalk-files}
+  region: ${OSS_REGION:cn-hangzhou}
+
+sms:
+  access-key: ${SMS_ACCESS_KEY:}
+  secret-key: ${SMS_SECRET_KEY:}
+  sign-name: ${SMS_SIGN_NAME:WeTalk}
+  template-code: ${SMS_TEMPLATE_CODE:SMS_123456}
+
+im:
+  port: ${IM_PORT:8088}
+  heartbeat-interval: 15
+  heartbeat-timeout: 45
+
+logging:
+  level:
+    com.wetalk: DEBUG
+    org.springframework.security: INFO

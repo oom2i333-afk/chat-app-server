@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wetalk.modules.admin.mapper.AdminUserMapper">
+    <select id="findByUsername" resultType="com.wetalk.modules.admin.entity.AdminUser">
+        SELECT * FROM admin_user WHERE username = #{username} AND status = 1
+    </select>
+</mapper>
