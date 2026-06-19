@@ -296,17 +296,17 @@ CREATE TABLE `system_config` (
 
 -- ─── 系统配置初始数据 ─────────────────────────────────
 INSERT INTO `system_config` (`config_key`, `config_value`, `description`, `updated_at`) VALUES
-('invite_codes', '["888888","666666","123456"]', '默认邀请码列表', UNIX_TIMESTAMP()*1000),
-('redpacket_max_amount', '200', '红包单次最大金额', UNIX_TIMESTAMP()*1000),
-('redpacket_daily_limit', '2000', '每日红包总限额', UNIX_TIMESTAMP()*1000),
-('msg_rate_limit', '10', '消息发送频率限制(秒)', UNIX_TIMESTAMP()*1000),
-('file_max_size', '52428800', '文件上传最大字节(50MB)', UNIX_TIMESTAMP()*1000),
-('register_ip_limit', '20', '同一IP每日注册上限', UNIX_TIMESTAMP()*1000);
+('invite_codes', '["888888","666666","123456"]', '默认邀请码列表', CAST(UNIX_TIMESTAMP() AS BIGINT) * 1000),
+('redpacket_max_amount', '200', '红包单次最大金额', CAST(UNIX_TIMESTAMP() AS BIGINT) * 1000),
+('redpacket_daily_limit', '2000', '每日红包总限额', CAST(UNIX_TIMESTAMP() AS BIGINT) * 1000),
+('msg_rate_limit', '10', '消息发送频率限制(秒)', CAST(UNIX_TIMESTAMP() AS BIGINT) * 1000),
+('file_max_size', '52428800', '文件上传最大字节(50MB)', CAST(UNIX_TIMESTAMP() AS BIGINT) * 1000),
+('register_ip_limit', '20', '同一IP每日注册上限', CAST(UNIX_TIMESTAMP() AS BIGINT) * 1000);
 
 INSERT INTO `sensitive_word` (`word`, `category`, `created_at`) VALUES
-('暴力', 'general', UNIX_TIMESTAMP()*1000),
-('赌博', 'general', UNIX_TIMESTAMP()*1000),
-('毒品', 'general', UNIX_TIMESTAMP()*1000),
-('枪', 'general', UNIX_TIMESTAMP()*1000);
+('暴力', 'general', CAST(UNIX_TIMESTAMP() AS BIGINT) * 1000),
+('赌博', 'general', CAST(UNIX_TIMESTAMP() AS BIGINT) * 1000),
+('毒品', 'general', CAST(UNIX_TIMESTAMP() AS BIGINT) * 1000),
+('枪', 'general', CAST(UNIX_TIMESTAMP() AS BIGINT) * 1000);
 
 -- 管理员账号由 DataInitializer 在 dev 模式下自动创建
