@@ -16,7 +16,7 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
 
 jwt:
-  secret: wetalk-dev-secret-key-32bytes-long-!!123456
+  secret: "wetalk-dev-secret-key-32bytes-long-123456"
 
 oss:
   endpoint: http://localhost:9000
