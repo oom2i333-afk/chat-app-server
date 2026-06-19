@@ -4,7 +4,8 @@ COPY pom.xml .
 RUN mvn dependency:go-offline -B
 COPY src ./src
 COPY public ./public
-RUN mvn package -DskipTests
+ARG CACHEBUST=1
+RUN mvn package -DskipTests -Dmaven.build.timestamp.cache=${CACHEBUST}
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
