@@ -31,20 +31,8 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .securityMatcher("/api/**")
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                    new AntPathRequestMatcher("/"),
-                    new AntPathRequestMatcher("/index.html"),
-                    new AntPathRequestMatcher("/js/**"),
-                    new AntPathRequestMatcher("/icons/**"),
-                    new AntPathRequestMatcher("/*.js"),
-                    new AntPathRequestMatcher("/*.css"),
-                    new AntPathRequestMatcher("/manifest.json"),
-                    new AntPathRequestMatcher("/sw.js"),
-                    new AntPathRequestMatcher("/offline.html"),
-                    new AntPathRequestMatcher("/clear-cache.html"),
-                    new AntPathRequestMatcher("/test.html")
-                ).permitAll()
                 .requestMatchers(new AntPathRequestMatcher("/api/v1/auth/**")).permitAll()
                 .requestMatchers(new AntPathRequestMatcher("/api/v1/admin/login")).permitAll()
                 .requestMatchers(new AntPathRequestMatcher("/api/health")).permitAll()

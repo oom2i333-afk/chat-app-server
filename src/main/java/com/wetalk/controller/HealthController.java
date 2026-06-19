@@ -13,7 +13,8 @@ public class HealthController {
     public ApiResponse<Map<String, Object>> health() {
         return ApiResponse.success(Map.of(
             "status", "ok",
-            "timestamp", System.currentTimeMillis()
+            "timestamp", System.currentTimeMillis(),
+            "version", "v4.0-java-8737bff"
         ));
     }
 }
