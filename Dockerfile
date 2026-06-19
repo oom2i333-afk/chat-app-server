@@ -4,4 +4,5 @@ COPY pom.xml .
 COPY src ./src
 RUN mvn package -DskipTests
 ENV SPRING_PROFILES_ACTIVE=dev
-CMD ["java", "-jar", "/app/target/wetalk-server-4.0.0-SNAPSHOT.jar"]
+EXPOSE 8080
+ENTRYPOINT ["sh", "-c", "java -jar /app/target/wetalk-server-4.0.0-SNAPSHOT.jar --server.port=${PORT:-8080} --spring.profiles.active=dev"]
