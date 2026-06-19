@@ -5,6 +5,7 @@ import com.wetalk.modules.admin.mapper.AdminUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -14,6 +15,7 @@ import java.util.UUID;
 @Slf4j
 @Component
 @Profile("dev")
+@DependsOn("dataSourceScriptDatabaseInitializer")
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 

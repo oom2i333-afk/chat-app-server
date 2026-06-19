@@ -1,6 +1,3 @@
-CREATE DATABASE IF NOT EXISTS wetalk DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE wetalk;
-
 -- ─── 用户表 ──────────────────────────────────────────
 CREATE TABLE `user` (
     `id`            BIGINT          NOT NULL AUTO_INCREMENT COMMENT '自增主键',
@@ -31,7 +28,7 @@ CREATE TABLE `user` (
     KEY `idx_nickname` (`nickname`),
     KEY `idx_status` (`status`),
     KEY `idx_created` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+) ENGINE=InnoDB COMMENT='用户表';
 
 -- ─── 管理员表 ─────────────────────────────────────────
 CREATE TABLE `admin_user` (
@@ -49,7 +46,7 @@ CREATE TABLE `admin_user` (
     `updated_at`    BIGINT      NOT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_username` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='管理员表';
+) ENGINE=InnoDB COMMENT='管理员表';
 
 -- ─── 好友关系表 ───────────────────────────────────────
 CREATE TABLE `friend_relation` (
@@ -65,7 +62,7 @@ CREATE TABLE `friend_relation` (
     UNIQUE KEY `uk_relationship` (`user_id`, `friend_id`),
     KEY `idx_user_status` (`user_id`, `status`),
     KEY `idx_friend` (`friend_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='好友关系表';
+) ENGINE=InnoDB COMMENT='好友关系表';
 
 -- ─── 好友请求表 ───────────────────────────────────────
 CREATE TABLE `friend_request` (
@@ -80,7 +77,7 @@ CREATE TABLE `friend_request` (
     KEY `idx_to_status` (`to_uid`, `status`),
     KEY `idx_from` (`from_uid`),
     KEY `idx_created` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='好友请求表';
+) ENGINE=InnoDB COMMENT='好友请求表';
 
 -- ─── 群组表 ───────────────────────────────────────────
 CREATE TABLE `group_info` (
@@ -98,7 +95,7 @@ CREATE TABLE `group_info` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_group_id` (`group_id`),
     KEY `idx_owner` (`owner_uid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群组表';
+) ENGINE=InnoDB COMMENT='群组表';
 
 -- ─── 群成员表 ─────────────────────────────────────────
 CREATE TABLE `group_member` (
@@ -115,7 +112,7 @@ CREATE TABLE `group_member` (
     UNIQUE KEY `uk_member` (`group_id`, `user_id`),
     KEY `idx_user` (`user_id`),
     KEY `idx_role` (`group_id`, `role`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群成员表';
+) ENGINE=InnoDB COMMENT='群成员表';
 
 -- ─── 消息表 ───────────────────────────────────────────
 CREATE TABLE `message` (
@@ -141,7 +138,7 @@ CREATE TABLE `message` (
     KEY `idx_chat` (`to_uid`, `created_at`),
     KEY `idx_seq_from` (`from_uid`, `seq_id`),
     KEY `idx_seq_to` (`to_uid`, `seq_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='消息表';
+) ENGINE=InnoDB COMMENT='消息表';
 
 -- ─── 红包表 ───────────────────────────────────────────
 CREATE TABLE `red_packet` (
@@ -164,7 +161,7 @@ CREATE TABLE `red_packet` (
     KEY `idx_sender` (`sender_uid`),
     KEY `idx_chat` (`chat_id`),
     KEY `idx_status` (`status`, `expire_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='红包表';
+) ENGINE=InnoDB COMMENT='红包表';
 
 -- ─── 红包领取记录表 ───────────────────────────────────
 CREATE TABLE `red_packet_record` (
@@ -177,7 +174,7 @@ CREATE TABLE `red_packet_record` (
     KEY `idx_packet` (`packet_id`),
     KEY `idx_user` (`user_id`),
     UNIQUE KEY `uk_packet_user` (`packet_id`, `user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='红包领取记录表';
+) ENGINE=InnoDB COMMENT='红包领取记录表';
 
 -- ─── 钱包流水表 ───────────────────────────────────────
 CREATE TABLE `wallet_transaction` (
@@ -195,7 +192,7 @@ CREATE TABLE `wallet_transaction` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_tx_id` (`tx_id`),
     KEY `idx_user` (`user_id`, `created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='钱包流水表';
+) ENGINE=InnoDB COMMENT='钱包流水表';
 
 -- ─── 审计日志表 ───────────────────────────────────────
 CREATE TABLE `audit_log` (
@@ -215,7 +212,7 @@ CREATE TABLE `audit_log` (
     KEY `idx_operator` (`operator`, `created_at`),
     KEY `idx_action` (`action`, `created_at`),
     KEY `idx_created` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审计日志表';
+) ENGINE=InnoDB COMMENT='审计日志表';
 
 -- ─── 管理员操作日志表 ─────────────────────────────────
 CREATE TABLE `admin_operation_log` (
@@ -235,7 +232,7 @@ CREATE TABLE `admin_operation_log` (
     UNIQUE KEY `uk_log_id` (`log_id`),
     KEY `idx_admin` (`admin_id`, `created_at`),
     KEY `idx_action` (`action`, `created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='管理员操作日志表';
+) ENGINE=InnoDB COMMENT='管理员操作日志表';
 
 -- ─── 敏感词表 ─────────────────────────────────────────
 CREATE TABLE `sensitive_word` (
@@ -245,7 +242,7 @@ CREATE TABLE `sensitive_word` (
     `created_at` BIGINT      NOT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_word` (`word`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='敏感词表';
+) ENGINE=InnoDB COMMENT='敏感词表';
 
 -- ─── 收藏表 ───────────────────────────────────────────
 CREATE TABLE `favorites` (
@@ -259,7 +256,7 @@ CREATE TABLE `favorites` (
     `created_at` BIGINT      NOT NULL,
     PRIMARY KEY (`id`),
     KEY `idx_user` (`user_id`, `created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='收藏表';
+) ENGINE=InnoDB COMMENT='收藏表';
 
 -- ─── 签到表 ───────────────────────────────────────────
 CREATE TABLE `sign_in` (
@@ -271,7 +268,7 @@ CREATE TABLE `sign_in` (
     `created_at` BIGINT      NOT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_user_date` (`user_id`, `date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='签到表';
+) ENGINE=InnoDB COMMENT='签到表';
 
 -- ─── 聊天设置表 ───────────────────────────────────────
 CREATE TABLE `chat_settings` (
@@ -284,7 +281,7 @@ CREATE TABLE `chat_settings` (
     `updated_at` BIGINT      NOT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_user_chat` (`user_id`, `chat_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='聊天设置表';
+) ENGINE=InnoDB COMMENT='聊天设置表';
 
 -- ─── 系统配置表 ───────────────────────────────────────
 CREATE TABLE `system_config` (
@@ -295,7 +292,7 @@ CREATE TABLE `system_config` (
     `updated_at`   BIGINT       NOT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_key` (`config_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置表';
+) ENGINE=InnoDB COMMENT='系统配置表';
 
 -- ─── 系统配置初始数据 ─────────────────────────────────
 INSERT INTO `system_config` (`config_key`, `config_value`, `description`, `updated_at`) VALUES
@@ -312,6 +309,4 @@ INSERT INTO `sensitive_word` (`word`, `category`, `created_at`) VALUES
 ('毒品', 'general', UNIX_TIMESTAMP()*1000),
 ('枪', 'general', UNIX_TIMESTAMP()*1000);
 
--- 默认管理员账号密码: admin / admin888 (请生产环境修改)
-INSERT INTO `admin_user` (`username`, `password_hash`, `nickname`, `role`, `created_at`, `updated_at`)
-VALUES ('admin', '$2a$12$LJ3m4ys3Lk0TSwHnbfOMiOXPm1Qlq5GzH5x7Y5F5e5y5d5e5f5g5h', '超级管理员', 'SUPER_ADMIN', UNIX_TIMESTAMP()*1000, UNIX_TIMESTAMP()*1000);
+-- 管理员账号由 DataInitializer 在 dev 模式下自动创建
