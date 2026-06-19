@@ -9,3 +9,4 @@ wetalk-server/target/
 
 target/
 *.jar
+data/backup.json
