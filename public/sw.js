@@ -23,6 +23,7 @@ const STATIC_ASSETS = [
   '/icons/icon-192.png',
   '/icons/icon-384.png',
   '/icons/icon-512.png',
+  '/js/api-client.js',
   '/offline.html',
 ];
 

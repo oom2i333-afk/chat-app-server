@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: wetalk-server
+  web:
+    resources:
+      static-locations: classpath:/static/,file:./public/
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:

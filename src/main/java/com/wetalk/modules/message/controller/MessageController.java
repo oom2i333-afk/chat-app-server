@@ -3,13 +3,16 @@ package com.wetalk.modules.message.controller;
 import com.wetalk.auth.UserPrincipal;
 import com.wetalk.common.ApiResponse;
 import com.wetalk.modules.message.entity.Message;
+import com.wetalk.modules.message.event.MessageEvent;
 import com.wetalk.modules.message.service.MessageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/message")
@@ -17,6 +20,7 @@ import java.util.Map;
 public class MessageController {
 
     private final MessageService messageService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @GetMapping("/sync")
     public ApiResponse<List<Message>> sync(
@@ -42,6 +46,34 @@ public class MessageController {
             @RequestBody Map<String, String> body) {
         boolean ok = messageService.recallMessage(body.get("msgId"), user.getUserId());
         return ok ? ApiResponse.success(null) : ApiResponse.error("消息不存在或无权操作");
+    }
+
+    @PostMapping("/send")
+    public ApiResponse<Map<String, Object>> send(
+            @AuthenticationPrincipal UserPrincipal user,
+            @RequestBody Map<String, String> body) {
+        String toUid = body.get("to");
+        String text = body.get("text");
+        int msgType = Integer.parseInt(body.getOrDefault("msgType", "1"));
+        String msgId = UUID.randomUUID().toString();
+        long now = System.currentTimeMillis();
+
+        Message msg = new Message();
+        msg.setMsgId(msgId);
+        msg.setFromUid(user.getUserId());
+        msg.setToUid(toUid);
+        msg.setChatType(toUid.startsWith("g_") ? 2 : 1);
+        msg.setMsgType(msgType);
+        msg.setContentAes(text != null ? text.getBytes() : null);
+        msg.setStatus(1);
+        msg.setCreatedAt(now);
+
+        messageService.saveMessage(msg);
+
+        // Publish event for real-time push
+        eventPublisher.publishEvent(new MessageEvent(this, msg, user.getUserId()));
+
+        return ApiResponse.success(Map.of("msgId", msgId, "seqId", msg.getSeqId(), "createdAt", now));
     }
 
     @DeleteMapping("/{msgId}")
