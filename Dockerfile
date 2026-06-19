@@ -3,7 +3,7 @@ WORKDIR /app
 COPY pom.xml .
 RUN mvn dependency:go-offline -B -q
 COPY src ./src
-RUN mvn package -DskipTests -q
+RUN echo "Build timestamp: $(date)" && mvn package -DskipTests -q
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
