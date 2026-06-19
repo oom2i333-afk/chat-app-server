@@ -1,8 +1,14 @@
-FROM maven:3.9-eclipse-temurin-21
+FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
 COPY pom.xml .
+RUN mvn dependency:go-offline -B
 COPY src ./src
 RUN mvn package -DskipTests
-ENV SPRING_PROFILES_ACTIVE=dev
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=build /app/target/wetalk-server-*.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["sh", "-c", "java -jar /app/target/wetalk-server-4.0.0-SNAPSHOT.jar --server.port=${PORT:-8080} --spring.profiles.active=dev"]
+ENV SPRING_PROFILES_ACTIVE=dev
+ENV JAVA_OPTS="-Xmx256m -Xss512k -XX:+UseSerialGC"
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar --server.port=${PORT:-8080}"]
