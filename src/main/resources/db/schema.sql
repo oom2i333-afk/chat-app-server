@@ -26,8 +26,8 @@ CREATE TABLE `user` (
     UNIQUE KEY `uk_uid` (`uid`),
     UNIQUE KEY `uk_phone_hash` (`phone_hash`),
     KEY `idx_nickname` (`nickname`),
-    KEY `idx_status` (`status`),
-    KEY `idx_created` (`created_at`)
+    KEY `idx_u_acc_status` (`status`),
+    KEY `idx_user_created` (`created_at`)
 ) ENGINE=InnoDB COMMENT='用户表';
 
 -- ─── 管理员表 ─────────────────────────────────────────
@@ -76,7 +76,7 @@ CREATE TABLE `friend_request` (
     PRIMARY KEY (`id`),
     KEY `idx_to_status` (`to_uid`, `status`),
     KEY `idx_from` (`from_uid`),
-    KEY `idx_created` (`created_at`)
+    KEY `idx_fr_created` (`created_at`)
 ) ENGINE=InnoDB COMMENT='好友请求表';
 
 -- ─── 群组表 ───────────────────────────────────────────
@@ -110,7 +110,7 @@ CREATE TABLE `group_member` (
     `leaved_at`     BIGINT      DEFAULT NULL COMMENT '离开时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_member` (`group_id`, `user_id`),
-    KEY `idx_user` (`user_id`),
+    KEY `idx_gm_user` (`user_id`),
     KEY `idx_role` (`group_id`, `role`)
 ) ENGINE=InnoDB COMMENT='群成员表';
 
@@ -135,7 +135,7 @@ CREATE TABLE `message` (
     `updated_at`    BIGINT      DEFAULT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_msg_id` (`msg_id`),
-    KEY `idx_chat` (`to_uid`, `created_at`),
+    KEY `idx_msg_chat` (`to_uid`, `created_at`),
     KEY `idx_seq_from` (`from_uid`, `seq_id`),
     KEY `idx_seq_to` (`to_uid`, `seq_id`)
 ) ENGINE=InnoDB COMMENT='消息表';
@@ -159,8 +159,8 @@ CREATE TABLE `red_packet` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_packet_id` (`packet_id`),
     KEY `idx_sender` (`sender_uid`),
-    KEY `idx_chat` (`chat_id`),
-    KEY `idx_status` (`status`, `expire_at`)
+    KEY `idx_rp_chat` (`chat_id`),
+    KEY `idx_rp_status` (`status`, `expire_at`)
 ) ENGINE=InnoDB COMMENT='红包表';
 
 -- ─── 红包领取记录表 ───────────────────────────────────
@@ -172,7 +172,7 @@ CREATE TABLE `red_packet_record` (
     `created_at`    BIGINT          NOT NULL,
     PRIMARY KEY (`id`),
     KEY `idx_packet` (`packet_id`),
-    KEY `idx_user` (`user_id`),
+    KEY `idx_rpr_user` (`user_id`),
     UNIQUE KEY `uk_packet_user` (`packet_id`, `user_id`)
 ) ENGINE=InnoDB COMMENT='红包领取记录表';
 
@@ -191,7 +191,7 @@ CREATE TABLE `wallet_transaction` (
     `created_at`     BIGINT          NOT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_tx_id` (`tx_id`),
-    KEY `idx_user` (`user_id`, `created_at`)
+    KEY `idx_wt_user` (`user_id`, `created_at`)
 ) ENGINE=InnoDB COMMENT='钱包流水表';
 
 -- ─── 审计日志表 ───────────────────────────────────────
@@ -210,8 +210,8 @@ CREATE TABLE `audit_log` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_log_id` (`log_id`),
     KEY `idx_operator` (`operator`, `created_at`),
-    KEY `idx_action` (`action`, `created_at`),
-    KEY `idx_created` (`created_at`)
+    KEY `idx_al_action` (`action`, `created_at`),
+    KEY `idx_al_created` (`created_at`)
 ) ENGINE=InnoDB COMMENT='审计日志表';
 
 -- ─── 管理员操作日志表 ─────────────────────────────────
@@ -229,9 +229,9 @@ CREATE TABLE `admin_operation_log` (
     `result`        TINYINT     DEFAULT 1,
     `created_at`    BIGINT      NOT NULL,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_log_id` (`log_id`),
+    UNIQUE KEY `uk_aol_log_id` (`log_id`),
     KEY `idx_admin` (`admin_id`, `created_at`),
-    KEY `idx_action` (`action`, `created_at`)
+    KEY `idx_aol_action` (`action`, `created_at`)
 ) ENGINE=InnoDB COMMENT='管理员操作日志表';
 
 -- ─── 敏感词表 ─────────────────────────────────────────
@@ -255,7 +255,7 @@ CREATE TABLE `favorites` (
     `file_url`   VARCHAR(512) DEFAULT NULL,
     `created_at` BIGINT      NOT NULL,
     PRIMARY KEY (`id`),
-    KEY `idx_user` (`user_id`, `created_at`)
+    KEY `idx_fav_user` (`user_id`, `created_at`)
 ) ENGINE=InnoDB COMMENT='收藏表';
 
 -- ─── 签到表 ───────────────────────────────────────────
