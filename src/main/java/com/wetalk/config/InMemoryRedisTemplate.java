@@ -20,6 +20,16 @@ public class InMemoryRedisTemplate extends StringRedisTemplate {
 
     // ── 核心覆盖 ──
 
+    /**
+     * 跳过 RedisConnectionFactory 检查。
+     * 父类 afterPropertiesSet() 会检查 connectionFactory != null，
+     * 但我们用内存实现不需要它。
+     */
+    @Override
+    public void afterPropertiesSet() {
+        // no-op: 不检查 RedisConnectionFactory
+    }
+
     @Override
     public ValueOperations<String, String> opsForValue() {
         return new InMemoryValueOperations(store, expires);
