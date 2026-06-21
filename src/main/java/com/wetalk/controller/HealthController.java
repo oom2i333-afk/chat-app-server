@@ -14,7 +14,7 @@ public class HealthController {
         return ApiResponse.success(Map.of(
             "status", "ok",
             "timestamp", System.currentTimeMillis(),
-            "version", "v4.0-java-8737bff"
+            "version", "v4.0-java-60149ca"
         ));
     }
 }

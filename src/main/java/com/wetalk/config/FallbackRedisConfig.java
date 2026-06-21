@@ -21,8 +21,8 @@ import java.util.concurrent.atomic.AtomicLong;
 @Profile("dev")
 public class FallbackRedisConfig {
 
-    private final ConcurrentHashMap<String, String> store = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Long> expires = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, String> store = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Long> expires = new ConcurrentHashMap<>();
 
     @Bean
     @Primary
