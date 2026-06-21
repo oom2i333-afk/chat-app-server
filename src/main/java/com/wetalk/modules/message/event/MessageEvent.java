@@ -9,12 +9,10 @@ public class MessageEvent extends ApplicationEvent {
 
     private final Message message;
     private final String senderUid;
-    private final long timestamp;
 
     public MessageEvent(Object source, Message message, String senderUid) {
         super(source);
         this.message = message;
         this.senderUid = senderUid;
-        this.timestamp = System.currentTimeMillis();
     }
 }
