@@ -223,7 +223,8 @@ public class FallbackRedisConfig {
         private final ConcurrentHashMap<String, Set<String>> sets = new ConcurrentHashMap<>();
 
         @Override public Long add(String key, String... values) {
-            return (long) sets.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet()).addAll(Arrays.asList(values)) ? 1L : 0L;
+            boolean added = sets.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet()).addAll(Arrays.asList(values));
+            return added ? 1L : 0L;
         }
         @Override public Set<String> members(String key) { return sets.getOrDefault(key, Collections.emptySet()); }
         @Override public Boolean isMember(String key, Object o) {
