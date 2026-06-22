@@ -5,7 +5,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 
 @Data
-@TableName("user")
+@TableName(value = "`user`")
 public class User {
     @TableId(type = IdType.AUTO)
     private Long id;
